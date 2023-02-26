@@ -9,6 +9,7 @@ from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import FormulaRule
 import datetime
 
+
 class Emission:
     def __init__(self):
         self.issued_path = self.get_issued_path()
@@ -20,7 +21,6 @@ class Emission:
         self.project_number = self.get_project_number()
         self.file_num_caract = 23
 
-    
     def get_files(self):
         docs = []
         for file in os.listdir('.'):
@@ -59,7 +59,7 @@ class Emission:
                 self.ld_name = item
 
         return last_revision
-    
+
     def get_grd_number(self):
         book_path = os.path.join(self.issued_path, '_LDs', self.ld_name)
         wb = openpyxl.load_workbook(book_path, read_only=True)
@@ -152,7 +152,6 @@ class Emission:
                 grd_items.append([doc_name, doc[1]])
         self.create_excel_grd(grd_items)
 
-
     def create_excel_grd(self, grd_items):
         book_path = os.path.join(self.issued_path, '_LDs', self.ld_name)
         book = openpyxl.load_workbook(book_path)
@@ -162,12 +161,12 @@ class Emission:
         sheet.title = self.grd_name
         i = 1
         for item in grd_items:
-            sheet.cell(row = 25 + i, column = 1).value = int(i)
-            sheet.cell(row = 25 + i, column = 2).value = item[0]
-            sheet.cell(row = 25 + i, column = 16).value = int(item[1])
+            sheet.cell(row=25 + i, column=1).value = int(i)
+            sheet.cell(row=25 + i, column=2).value = item[0]
+            sheet.cell(row=25 + i, column=16).value = int(item[1])
             i += 1
-        sheet.cell(row = 10, column = 12).value = self.grd_name
-        
+        sheet.cell(row=10, column=12).value = self.grd_name
+
         date_defined = False
         while not date_defined:
             title = "Data de emissão"
@@ -178,7 +177,7 @@ class Emission:
                 date_defined = True
             else:
                 msgbox("Formato de data inválido")
-        sheet.cell(row = 7, column = 12).value = emission_date
+        sheet.cell(row=7, column=12).value = emission_date
 
         yellowFill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
         sheet.conditional_formatting.add('$E$26:$O$192', FormulaRule(formula=['AND($B26<>"",E26="")'], stopIfTrue=False, fill=yellowFill))
@@ -205,16 +204,20 @@ class Emission:
             input_list = ["1ª LINHA - TIPO DE PROJETO ", "2ª LINHA - TÍTULO DO PROJETO", "3ª LINHA - TÍTULO DO DOCUMENTO"]
             default_list = ["PROJETO CONCEITUAL/BÁSICO/EXECUTIVO", "TÍTULO DO PROJETO", "TÍTULO DO DOCUMENTO"]
             output = multenterbox(text, title, input_list, default_list)
+            project_title = output[1]
             ld_title = "\n".join(output)
             ld_title += "\nLISTA DE DOCUMENTOS"
-            cover_sheet.cell(row = 5, column = 1).value = ld_title
+            cover_sheet.cell(row=5, column=1).value = ld_title
         else:
             revision = self.ld_number + 1
             ld_name = self.ld_name[:self.file_num_caract] + '_R' + str(revision)
-        cover_sheet.cell(row = 6, column = 12).value = revision
-        cover_sheet.cell(row = 16 + revision, column = 1).value = revision
-        cover_sheet.cell(row = 16 + revision, column = 2).value = "C"
-        cover_sheet.cell(row = 16 + revision, column = 3).value = self.grd_name
+            last_grd = book['GRD-' + str(self.grd_number - 1).zfill(3)]
+            project_title = last_grd.cell(row=1, column=6).value
+        sheet.cell(row=1, column=6).value = project_title
+        cover_sheet.cell(row=6, column = 12).value = revision
+        cover_sheet.cell(row=16 + revision, column=1).value = revision
+        cover_sheet.cell(row=16 + revision, column=2).value = "C"
+        cover_sheet.cell(row=16 + revision, column=3).value = self.grd_name
         rev_cell = self.get_cover_cell(revision)
         rev_row = rev_cell[0]
         rev_column = rev_cell[1]
@@ -226,19 +229,19 @@ class Emission:
             default_list = ["XXX", "XXX", "XXX"]
         else:
             previous_cover_cell = self.get_cover_cell(revision - 1)
-            d1 = cover_sheet.cell(row = previous_cover_cell[0] + 1, column = previous_cover_cell[1]).value
-            d2 = cover_sheet.cell(row = previous_cover_cell[0] + 2, column = previous_cover_cell[1]).value
-            d3 = cover_sheet.cell(row = previous_cover_cell[0] + 3, column = previous_cover_cell[1]).value
+            d1 = cover_sheet.cell(row=previous_cover_cell[0] + 1, column=previous_cover_cell[1]).value
+            d2 = cover_sheet.cell(row=previous_cover_cell[0] + 2, column=previous_cover_cell[1]).value
+            d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3, column=previous_cover_cell[1]).value
             default_list = [d1, d2, d3]
         output = multenterbox(text, title, input_list, default_list)
 
-        cover_sheet.cell(row = rev_row, column = rev_column).value = emission_date
-        cover_sheet.cell(row = rev_row + 1, column = rev_column).value = output[0]
-        cover_sheet.cell(row = rev_row + 2, column = rev_column).value = output[1]
-        cover_sheet.cell(row = rev_row + 3, column = rev_column).value = output[2]
+        cover_sheet.cell(row=rev_row, column=rev_column).value = emission_date
+        cover_sheet.cell(row=rev_row + 1, column=rev_column).value = output[0]
+        cover_sheet.cell(row=rev_row + 2, column=rev_column).value = output[1]
+        cover_sheet.cell(row=rev_row + 3, column=rev_column).value = output[2]
 
         ld_final_path = os.path.join(self.issued_path, '_LDs', ld_name + '.xlsx')
-        book.save(filename = ld_final_path)
+        book.save(filename=ld_final_path)
         book.close()
 
     def move_files(self):
@@ -285,7 +288,7 @@ class Emission:
         else:
             rev = 0
         return rev
-    
+
     @staticmethod
     def verify_pattern(doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
@@ -294,7 +297,7 @@ class Emission:
             return True
         else:
             return False
-        
+
     @staticmethod
     def verify_ld_pattern_no_rev(doc_name):
         pattern = r'^IFS-\d{4}-\d{3}-\w{1}-LD-\d{5}$'
@@ -313,7 +316,7 @@ class Emission:
             revision = re.search(r'(?i)_R\d+$',os.path.splitext(doc_name_no_extension)[0]).group()
             revision = int(''.join(filter(str.isdigit, revision)))
             return revision
-    
+
     @staticmethod
     def verify_date_pattern(date):
         pattern = r"\d{2}/\d{2}/\d{2}"
@@ -321,7 +324,7 @@ class Emission:
             return True
         else:
             return False
-        
+
     @staticmethod
     def get_cover_cell(rev):
         if rev == 0 or rev == 5:
@@ -334,12 +337,12 @@ class Emission:
             column = 8
         elif rev == 4 or rev == 9:
             column = 11
-        
+
         if rev < 4:
             row = 32
         else:
             row = 37
-        
+
         return [row, column]
 
 

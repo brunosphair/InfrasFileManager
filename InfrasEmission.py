@@ -227,7 +227,7 @@ class Emission:
             probably_name = self.get_probably_name()
             d_text = "IFS-"\
                      + str(self.project_number)\
-                     + "-" + probably_name + "-LD-00001"
+                     + "-" + probably_name + "-G-LD-00001"
             defined_name = False
             while not defined_name:
                 ld_name = enterbox(text, title, d_text)
@@ -269,7 +269,7 @@ class Emission:
                                   column=previous_cover_cell[1]).value
             d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3,
                                   column=previous_cover_cell[1]).value
-            self.ld_information["acronym_default_list"] = [d1, d2, d3]
+            default_list = [d1, d2, d3]
         output = multenterbox(text, title, input_list, default_list)
         self.ld_information["acronym1"] = output[0]
         self.ld_information["acronym2"] = output[1]
@@ -357,6 +357,26 @@ class Emission:
         book.save(filename=ld_final_path)
         book.close()
 
+    def check_open_files(self):
+        file_open = True
+        while file_open:
+            try:
+                for doc in self.docs:
+                    if doc[2]:
+                        src = Path(doc[0])
+                        os.replace(src, src)
+                file_open = False
+            except OSError:
+                file_open = True
+                text = "Há ao menos um arquivo da emissão que está aberto, todos os arquivos que serão emitidos devem estar fechados"
+                title = "Todos os arquivos devem estar fechados"
+                button_list = ["Repetir", "Cancelar"]
+                output = buttonbox(text, title, button_list)
+                if output == "Repetir":
+                    pass
+                elif output == "Cancelar":
+                    sys.exit(0)
+
     def move_files(self):
         # Deletes the revision suffix from the filename
         filenames = []
@@ -385,13 +405,13 @@ class Emission:
 
     def get_probably_name(self):
         doc_name = self.docs[0]
-        probably_name = doc_name[0][9:14]
+        probably_name = doc_name[0][9:12]
 
         return probably_name
 
     def get_revision(self, doc):
         filename = os.path.splitext(doc)[0]
-        pattern = self.rev_regular_expression
+        pattern = self.rev_reg_expression
         if re.search(pattern, os.path.splitext(filename)[0]) is not None:
             rev = re.search(pattern, os.path.splitext(filename)[0]).group()
             rev = int(''.join(filter(str.isdigit, rev)))
@@ -401,7 +421,7 @@ class Emission:
 
     def verify_pattern(self, doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
-        pattern = self.doc_regular_expression
+        pattern = self.doc_reg_expression
         if re.match(pattern, doc_name_no_extension):
             return True
         else:
@@ -455,14 +475,16 @@ class Emission:
             row = 37
 
         return [row, column]
+    
+    #TODO : Verificar arquivos que terminam com Rev
 
 
 if __name__ == '__main__':
-    os.chdir(r'C:\Users\Bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_pattern()
     emis.check_files()
     emis.get_ld_information()
+    emis.check_open_files()
     emis.create_zip()
     emis.create_ld()
     emis.move_files()

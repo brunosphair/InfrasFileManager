@@ -469,7 +469,7 @@ class Emission:
         elif rev == 4 or rev == 9:
             column = 11
 
-        if rev < 4:
+        if rev <= 4:
             row = 32
         else:
             row = 37

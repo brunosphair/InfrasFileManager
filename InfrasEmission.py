@@ -368,7 +368,7 @@ class Emission:
                 file_open = False
             except OSError:
                 file_open = True
-                text = "Há ao menos um arquivo da emissão que está aberto, todos os arquivos que serão emitidos devem estar fechados"
+                text = "O arquivo " + doc[0] + " está aberto. Feche-o e clique em repetir para continuar a operação."
                 title = "Todos os arquivos devem estar fechados"
                 button_list = ["Repetir", "Cancelar"]
                 output = buttonbox(text, title, button_list)
@@ -480,6 +480,7 @@ class Emission:
 
 
 if __name__ == '__main__':
+    os.chdir(r'C:\Users\Bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_pattern()
     emis.check_files()

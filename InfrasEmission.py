@@ -32,11 +32,18 @@ class Emission:
         docs = []
         for file in os.listdir('.'):
             if os.path.isfile(file):
+                dict = {}
                 rev = self.get_revision(file)
-                docs.append([file, rev, True])
+                dict['file'] = file
+                dict['rev'] = rev
+                dict['emit'] = True
+                docs.append(dict)
         return docs
 
     def get_issued_path(self):
+        '''
+        Returns the path to the folder 3_Emitidos
+        '''
         path = Path(os.getcwd()).parent.absolute()
         parent_path = path.parent.absolute()
         issued_path = os.path.join(parent_path, '3_Emitidos')
@@ -104,9 +111,9 @@ class Emission:
     def check_pattern(self):
         ignored_files = []
         for doc in self.docs:
-            if not self.verify_pattern(doc[0]):
-                ignored_files.append(doc[0])
-                doc[2] = False
+            if not self.verify_pattern(doc['file']):
+                ignored_files.append(doc['file'])
+                doc['emit'] = False
         if len(ignored_files):
             msg = "Os seguintes arquivos não serão emitidos, pois não "\
                 "correspondem ao padrão de nomenclatura de arquivos:\n\n" \
@@ -119,20 +126,20 @@ class Emission:
 
     def check_files(self):
         for doc in self.docs:
-            if doc[2]:
-                path_name = doc[0][:self.file_num_caract]
-                doc_name = self.get_file_name(doc[0])
+            if doc['emit']:
+                path_name = doc['file'][:self.file_num_caract]
+                doc_name = self.get_file_name(doc['file'])
                 doc_directory = os.path.join(self.issued_path, path_name)
                 if os.path.isdir(doc_directory):
                     for file in os.listdir(doc_directory):
                         try:
                             file_name = self.get_file_name(file)
                             if self.get_revision(file
-                                                 ) == doc[1] and file_name == doc_name:
+                                                 ) == doc['rev'] and file_name == doc_name:
                                 raise NameError
                         except NameError:
                             msg = 'O arquivo ' + doc_name + ' com a revisão '\
-                                + str(doc[1]) \
+                                + str(doc['rev']) \
                                 + ' já existe. O que deseja fazer?'
                             choices = [
                                        "Não emitir esse arquivo",
@@ -143,7 +150,7 @@ class Emission:
                             choice = buttonbox(msg, title, choices)
                             if choice == "Não emitir esse arquivo":
                                 # print("arquivo ignorado")
-                                doc[2] = False
+                                doc['emit'] = False
                             elif choice == "Emitir mesmo assim":
                                 obsolete_path = os.path.join(doc_directory,
                                                              "Obsoleto")
@@ -163,13 +170,13 @@ class Emission:
                                 file_destiny_path = os.path.join(obsolete_path,
                                                                  file_aux)
                                 os.replace(file_source_path, file_destiny_path)
-                                doc[2] = True
+                                doc['emit'] = True
                             elif choice == "Cancelar":
                                 sys.exit(0)
         list_of_options = []
         for doc in self.docs:
-            if doc[2]:
-                list_of_options.append(doc[0])
+            if doc['emit']:
+                list_of_options.append(doc['file'])
         if len(list_of_options) == 0:
             sys.exit(0)
         elif len(list_of_options) == 1:
@@ -185,24 +192,24 @@ class Emission:
                                     preselect=[*range(len(list_of_options))])
             # print(choices)
             for doc in self.docs:
-                if not doc[0] in choices:
-                    doc[2] = False
+                if not doc['file'] in choices:
+                    doc['emit'] = False
 
     def create_zip(self):
         zipObj = ZipFile(self.grd_name + '.zip', 'w')
         for doc in self.docs:
-            if doc[2]:
-                zipObj.write(doc[0])
+            if doc['emit']:
+                zipObj.write(doc['file'])
         zipObj.close()
 
     def create_ld(self):
         no_docs = []
         grd_items = []
         for doc in self.docs:
-            doc_name = self.get_file_name(doc[0])
-            if doc[2] and doc_name not in no_docs:
+            doc_name = self.get_file_name(doc['file'])
+            if doc['emit'] and doc_name not in no_docs:
                 no_docs.append(doc_name)
-                grd_items.append([doc_name, doc[1]])
+                grd_items.append([doc_name, doc['rev']])
         self.create_excel_grd(grd_items)
 
     def get_ld_information(self):
@@ -362,13 +369,13 @@ class Emission:
         while file_open:
             try:
                 for doc in self.docs:
-                    if doc[2]:
-                        src = Path(doc[0])
+                    if doc['emit']:
+                        src = Path(doc['file'])
                         os.replace(src, src)
                 file_open = False
             except OSError:
                 file_open = True
-                text = "O arquivo " + doc[0] + " está aberto. Feche-o e clique em repetir para continuar a operação."
+                text = "O arquivo " + doc['file'] + " está aberto. Feche-o e clique em repetir para continuar a operação."
                 title = "Todos os arquivos devem estar fechados"
                 button_list = ["Repetir", "Cancelar"]
                 output = buttonbox(text, title, button_list)
@@ -381,8 +388,8 @@ class Emission:
         # Deletes the revision suffix from the filename
         filenames = []
         for doc in self.docs:
-            if doc[2]:
-                filenames.append(doc[0][:self.file_num_caract])
+            if doc['emit']:
+                filenames.append(doc['file'][:self.file_num_caract])
         set(filenames)
         # If the file directory doesn't exists, the code creates it
         for item in filenames:
@@ -392,11 +399,11 @@ class Emission:
                 self.directories.append(item)
         for directory in self.directories:
             for doc in self.docs:
-                if doc[2] and doc[0].startswith(directory):
-                    src = Path(doc[0])
+                if doc['emit'] and doc['file'].startswith(directory):
+                    src = Path(doc['file'])
                     dest = Path(os.path.join(os.path.join(self.issued_path,
                                                           directory),
-                                             doc[0]))
+                                             doc['file']))
                     os.replace(src, dest)
 
     def get_file_name(self, doc):
@@ -405,7 +412,7 @@ class Emission:
 
     def get_probably_name(self):
         doc_name = self.docs[0]
-        probably_name = doc_name[0][9:12]
+        probably_name = doc_name['file'][9:12]
 
         return probably_name
 

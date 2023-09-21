@@ -1,8 +1,7 @@
-from dotenv import dotenv_values
+dict = {}
+dict['file_name'] = 'teste'
 
-try:
-    config = dotenv_values('config.env')
-    print(config)
-    print(config['REGULAR_EXPRESSION'])
-except KeyError:
-    pass
+list = []
+list.append(dict)
+
+print(list[0]['file_name'])

@@ -2,26 +2,26 @@ import os
 import re
 import sys
 from pathlib import Path
-from easygui import buttonbox, ccbox, multchoicebox, enterbox, msgbox,\
+from easygui import buttonbox, ccbox, multchoicebox, enterbox, msgbox, \
                     multenterbox
 from zipfile import ZipFile
-import openpyxl
-from openpyxl.styles import PatternFill
-from openpyxl.formatting.rule import FormulaRule
 import datetime
 from dotenv import dotenv_values
+
+from excel_functions import get_grd_number, create_excel_grd, \
+                            get_acronym_default_list, get_cover_cell
 
 
 class Emission:
     def __init__(self):
         self.doc_reg_expression, self.rev_reg_expression = \
                                                     self.get_reg_expressions()
-        self.issued_path = self.get_issued_path()
+        self.emited_path = self.get_emited_path()
         self.docs = self.get_files()
-        self.directories = self.get_directories()
-        self.ld_number = self.get_ld_number()
+        self.directories = self.get_emited_directories()
+        self.ld_rev = self.get_ld_rev()
         self.project_number = self.get_project_number()
-        self.grd_number = self.get_grd_number()
+        self.grd_number = get_grd_number(self.emited_path, self.ld_name)
         self.grd_name = 'IFS-GRD-' + \
                         str(self.project_number) + \
                         "-" + str(self.grd_number).zfill(3)
@@ -29,14 +29,25 @@ class Emission:
         self.ld_information = {}
 
     def get_files(self):
+        '''
+        Returns a list of dictionarys, where which dict has the filename, the
+        revision number and declares the 'emit' key as True.
+        '''
         docs = []
         for file in os.listdir('.'):
             if os.path.isfile(file):
+                dict = {}
                 rev = self.get_revision(file)
-                docs.append([file, rev, True])
+                dict['file_name'] = file
+                dict['rev'] = rev
+                dict['emit'] = True
+                docs.append(dict)
         return docs
 
-    def get_issued_path(self):
+    def get_emited_path(self):
+        '''
+        Returns the path to the folder 3_Emitidos
+        '''
         path = Path(os.getcwd()).parent.absolute()
         parent_path = path.parent.absolute()
         issued_path = os.path.join(parent_path, '3_Emitidos')
@@ -44,19 +55,26 @@ class Emission:
             raise FileNotFoundError("A pasta 3_Emitidos não foi encontrada")
         return issued_path
 
-    def get_directories(self):
+    def get_emited_directories(self):
+        '''
+        Return all the directories in the 3_Emitidos path. Therefore, returns
+        the name of the files which was alredy emited.
+        '''
         directories = []
-        for file in os.listdir(self.issued_path):
-            if os.path.isdir(os.path.join(self.issued_path, file)):
+        for file in os.listdir(self.emited_path):
+            if os.path.isdir(os.path.join(self.emited_path, file)):
                 directories.append(file)
         return directories
 
-    def get_ld_number(self):
-        lds_directory = os.path.join(self.issued_path, '_LDs')
+    def get_ld_rev(self):
+        '''
+        Returns the revision of the last LD emited. If this is the first LD,
+        then the function returns -1.
+        '''
+        lds_directory = os.path.join(self.emited_path, '_LDs')
         if not os.path.isdir(lds_directory):
             raise FileNotFoundError("A pasta _LDs não foi encontrada")
         lds = os.listdir(lds_directory)
-        # print(lds)
         self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsx'
         last_revision = -1
         for item in lds:
@@ -66,18 +84,6 @@ class Emission:
                 self.ld_name = item
 
         return last_revision
-
-    def get_grd_number(self):
-        book_path = os.path.join(self.issued_path, '_LDs', self.ld_name)
-        wb = openpyxl.load_workbook(book_path, read_only=True)
-        grd_number = 1
-        sheet_name = 'GRD-' + str(grd_number).zfill(3)
-        while sheet_name in wb.sheetnames:
-            grd_number += 1
-            sheet_name = 'GRD-' + str(grd_number).zfill(3)
-        wb.close()
-        # print(grd_number)
-        return grd_number
 
     def get_reg_expressions(self):
         try:
@@ -93,6 +99,9 @@ class Emission:
         return doc_reg_expression, rev_reg_expression
 
     def get_project_number(self):
+        '''
+        Retuns the number of the project.
+        '''
         path = Path(os.getcwd()).parent.absolute()
         project_path = path.parent.absolute()
         dir_name = os.path.basename(project_path)
@@ -101,38 +110,42 @@ class Emission:
             raise ValueError("O arquivo executado não está na pasta correta")
         return project_number
 
-    def check_pattern(self):
+    def check_filename_pattern(self):
+        '''
+        Checks if the name of the files corresponds to the specified pattern.
+        If the filename dont correspond to the pattern, the doc['emit'] is
+        declared as False, so the file is not going to be emited anymore
+        '''
         ignored_files = []
         for doc in self.docs:
-            if not self.verify_pattern(doc[0]):
-                ignored_files.append(doc[0])
-                doc[2] = False
+            if not self.verify_pattern(doc['file_name']):
+                doc['emit'] = False
+                if not doc['file_name'].startswith('InfrasEmission'):
+                    ignored_files.append(doc['file_name'])
+
         if len(ignored_files):
             msg = "Os seguintes arquivos não serão emitidos, pois não "\
                 "correspondem ao padrão de nomenclatura de arquivos:\n\n" \
                 + '\n'.join(ignored_files) + "\n\nO que deseja fazer?"
             title = "Inconsistência na nomenclatura dos arquivos"
-            if ccbox(msg, title):
-                pass
-            else:
-                sys.exit(0)
+            self.text_box(msg, title)
 
     def check_files(self):
         for doc in self.docs:
-            if doc[2]:
-                path_name = doc[0][:self.file_num_caract]
-                doc_name = self.get_file_name(doc[0])
-                doc_directory = os.path.join(self.issued_path, path_name)
+            if doc['emit']:
+                path_name = doc['file_name'][:self.file_num_caract]
+                doc_name = self.get_file_name(doc['file_name'])
+                doc_directory = os.path.join(self.emited_path, path_name)
                 if os.path.isdir(doc_directory):
                     for file in os.listdir(doc_directory):
                         try:
                             file_name = self.get_file_name(file)
                             if self.get_revision(file
-                                                 ) == doc[1] and file_name == doc_name:
+                                                 ) == doc['rev'] and file_name == doc_name:
                                 raise NameError
                         except NameError:
                             msg = 'O arquivo ' + doc_name + ' com a revisão '\
-                                + str(doc[1]) \
+                                + str(doc['rev']) \
                                 + ' já existe. O que deseja fazer?'
                             choices = [
                                        "Não emitir esse arquivo",
@@ -143,7 +156,7 @@ class Emission:
                             choice = buttonbox(msg, title, choices)
                             if choice == "Não emitir esse arquivo":
                                 # print("arquivo ignorado")
-                                doc[2] = False
+                                doc['emit'] = False
                             elif choice == "Emitir mesmo assim":
                                 obsolete_path = os.path.join(doc_directory,
                                                              "Obsoleto")
@@ -163,13 +176,13 @@ class Emission:
                                 file_destiny_path = os.path.join(obsolete_path,
                                                                  file_aux)
                                 os.replace(file_source_path, file_destiny_path)
-                                doc[2] = True
+                                doc['emit'] = True
                             elif choice == "Cancelar":
                                 sys.exit(0)
         list_of_options = []
         for doc in self.docs:
-            if doc[2]:
-                list_of_options.append(doc[0])
+            if doc['emit']:
+                list_of_options.append(doc['file_name'])
         if len(list_of_options) == 0:
             sys.exit(0)
         elif len(list_of_options) == 1:
@@ -185,25 +198,27 @@ class Emission:
                                     preselect=[*range(len(list_of_options))])
             # print(choices)
             for doc in self.docs:
-                if not doc[0] in choices:
-                    doc[2] = False
+                if not doc['file_name'] in choices:
+                    doc['emit'] = False
 
     def create_zip(self):
         zipObj = ZipFile(self.grd_name + '.zip', 'w')
         for doc in self.docs:
-            if doc[2]:
-                zipObj.write(doc[0])
+            if doc['emit']:
+                zipObj.write(doc['file_name'])
         zipObj.close()
 
     def create_ld(self):
         no_docs = []
         grd_items = []
         for doc in self.docs:
-            doc_name = self.get_file_name(doc[0])
-            if doc[2] and doc_name not in no_docs:
+            doc_name = self.get_file_name(doc['file_name'])
+            if doc['emit'] and doc_name not in no_docs:
                 no_docs.append(doc_name)
-                grd_items.append([doc_name, doc[1]])
-        self.create_excel_grd(grd_items)
+                grd_items.append([doc_name, doc['rev']])
+        create_excel_grd(self.emited_path, self.ld_name, self.grd_number,
+                         self.grd_name, self.ld_information, self.ld_rev,
+                         self.file_num_caract, grd_items)
 
     def get_ld_information(self):
         date_defined = False
@@ -217,9 +232,10 @@ class Emission:
             else:
                 msgbox("Formato de data inválido")
 
-        self.ld_information["emission_date"] = emission_date
+        ld_information = {}
+        ld_information["emission_date"] = emission_date
 
-        if self.ld_number == -1:
+        if self.ld_rev == -1:
             text = "Como essa é a primeira emissão desse projeto, digite um "\
                 "nome para a LD no padrão IFS-NNNN-NNN-X-LD-NNNNN onde X são "\
                 "letras e N são números"
@@ -237,7 +253,7 @@ class Emission:
                     msgbox("O nome que você digitou não atende aos requisitos"
                            " de IFS-NNNN-NNN-X-LD-NNNNN, digite novamente",
                            "Nome inválido!")
-            self.ld_information["ld_name"] = ld_name
+            ld_information["ld_name"] = ld_name
 
             text = "Defina os títulos da LD:"
             title = "Definir títulos"
@@ -248,127 +264,40 @@ class Emission:
                             "TÍTULO DO PROJETO",
                             "TÍTULO DO DOCUMENTO"]
             output = multenterbox(text, title, input_list, default_list)
-            self.ld_information["project_title"] = output[1]
-            self.ld_information["ld_title"] = "\n".join(output)\
-                                              + "\nLISTA DE DOCUMENTOS"
+            ld_information["project_title"] = output[1]
+            ld_information["ld_title"] = "\n".join(output)\
+                                         + "\nLISTA DE DOCUMENTOS"
 
         text = "Defina as iniciais dos responsáveis (formato XXX)"
         title = "Defina as iniciais"
         input_list = ["EXECUÇÃO", "VERIFICAÇÃO", "APROVAÇÃO"]
-        if self.ld_number == -1:
+        if self.ld_rev == -1:
             default_list = ["XXX", "XXX", "XXX"]
         else:
-            revision = self.ld_number + 1
-            previous_cover_cell = self.get_cover_cell(revision - 1)
-            book_path = os.path.join(self.issued_path, '_LDs', self.ld_name)
-            wb = openpyxl.load_workbook(book_path, read_only=True)
-            cover_sheet = wb['Capa']
-            d1 = cover_sheet.cell(row=previous_cover_cell[0] + 1,
-                                  column=previous_cover_cell[1]).value
-            d2 = cover_sheet.cell(row=previous_cover_cell[0] + 2,
-                                  column=previous_cover_cell[1]).value
-            d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3,
-                                  column=previous_cover_cell[1]).value
-            default_list = [d1, d2, d3]
+            revision = self.ld_rev + 1
+            previous_cover_cell = get_cover_cell(revision - 1)
+            book_path = os.path.join(self.emited_path, '_LDs', self.ld_name)
+            default_list = get_acronym_default_list(book_path,
+                                                    previous_cover_cell)
         output = multenterbox(text, title, input_list, default_list)
-        self.ld_information["acronym1"] = output[0]
-        self.ld_information["acronym2"] = output[1]
-        self.ld_information["acronym3"] = output[2]
+        ld_information["acronym1"] = output[0]
+        ld_information["acronym2"] = output[1]
+        ld_information["acronym3"] = output[2]
 
-    def create_excel_grd(self, grd_items):
-        book_path = os.path.join(self.issued_path, '_LDs', self.ld_name)
-        book = openpyxl.load_workbook(book_path)
-        template_sheet = book['GRD-XXX']
-        cover_sheet = book['Capa']
-        sheet = book.copy_worksheet(template_sheet)
-        sheet.title = 'GRD-' + str(self.grd_number).zfill(3)
-        i = 1
-        for item in grd_items:
-            sheet.cell(row=25 + i, column=1).value = int(i)
-            sheet.cell(row=25 + i, column=2).value = item[0]
-            sheet.cell(row=25 + i, column=16).value = int(item[1])
-            i += 1
-        sheet.cell(row=10, column=12).value = self.grd_name
-
-        sheet.cell(row=7,
-                   column=12).value = self.ld_information["emission_date"]
-
-        yellowFill = PatternFill(start_color='FFFF00',
-                                 end_color='FFFF00',
-                                 fill_type='solid')
-        sheet.conditional_formatting.add('$E$26:$O$192',
-                                         FormulaRule(formula=[
-                                                    'AND($B26<>"",E26="")'
-                                                    ],
-                                                    stopIfTrue=False,
-                                                    fill=yellowFill
-                                                    )
-                                         )
-        sheet.conditional_formatting.add('$Q$26:$R$192',
-                                         FormulaRule(formula=[
-                                                     'AND($B26<>"",Q26="")'
-                                                     ],
-                                                     stopIfTrue=False,
-                                                     fill=yellowFill
-                                                     )
-                                         )
-
-        if self.ld_number == -1:
-            revision = 0
-            ld_name = self.ld_information["ld_name"]
-            cover_sheet.cell(row=2,
-                             column=4).value = ld_name
-            ld_name = ld_name + "_R0"
-            project_title = self.ld_information["project_title"]
-            cover_sheet.cell(row=5,
-                             column=1).value = self.ld_information["ld_title"]
-        else:
-            revision = self.ld_number + 1
-            ld_name = self.ld_name[:self.file_num_caract] \
-                + '_R' \
-                + str(revision)
-            last_grd = book['GRD-' + str(self.grd_number - 1).zfill(3)]
-            project_title = last_grd.cell(row=1, column=6).value
-        sheet.cell(row=1, column=6).value = project_title
-        cover_sheet.cell(row=6, column=12).value = revision
-        cover_sheet.cell(row=16 + revision, column=1).value = revision
-        cover_sheet.cell(row=16 + revision, column=2).value = "C"
-        cover_sheet.cell(row=16 + revision, column=3).value = self.grd_name
-        rev_cell = self.get_cover_cell(revision)
-        rev_row = rev_cell[0]
-        rev_column = rev_cell[1]
-
-        cover_sheet.cell(row=rev_row,
-                         column=rev_column).value = self.ld_information[
-            "emission_date"]
-        cover_sheet.cell(row=rev_row + 1,
-                         column=rev_column).value = self.ld_information[
-            "acronym1"]
-        cover_sheet.cell(row=rev_row + 2,
-                         column=rev_column).value = self.ld_information[
-            "acronym2"]
-        cover_sheet.cell(row=rev_row + 3,
-                         column=rev_column).value = self.ld_information[
-            "acronym3"]
-
-        ld_final_path = os.path.join(self.issued_path,
-                                     '_LDs',
-                                     ld_name + '.xlsx')
-        book.save(filename=ld_final_path)
-        book.close()
+        return ld_information
 
     def check_open_files(self):
         file_open = True
         while file_open:
             try:
                 for doc in self.docs:
-                    if doc[2]:
-                        src = Path(doc[0])
+                    if doc['emit']:
+                        src = Path(doc['file_name'])
                         os.replace(src, src)
                 file_open = False
             except OSError:
                 file_open = True
-                text = "O arquivo " + doc[0] + " está aberto. Feche-o e clique em repetir para continuar a operação."
+                text = "O arquivo " + doc['file_name'] + " está aberto. Feche-o e clique em repetir para continuar a operação."
                 title = "Todos os arquivos devem estar fechados"
                 button_list = ["Repetir", "Cancelar"]
                 output = buttonbox(text, title, button_list)
@@ -381,23 +310,26 @@ class Emission:
         # Deletes the revision suffix from the filename
         filenames = []
         for doc in self.docs:
-            if doc[2]:
-                filenames.append(doc[0][:self.file_num_caract])
+            if doc['emit']:
+                filenames.append(doc['file_name'][:self.file_num_caract])
         set(filenames)
         # If the file directory doesn't exists, the code creates it
         for item in filenames:
             if item not in self.directories:
-                dir_to_create = os.path.join(self.issued_path, item)
+                dir_to_create = os.path.join(self.emited_path, item)
                 os.mkdir(dir_to_create)
                 self.directories.append(item)
         for directory in self.directories:
             for doc in self.docs:
-                if doc[2] and doc[0].startswith(directory):
-                    src = Path(doc[0])
-                    dest = Path(os.path.join(os.path.join(self.issued_path,
+                if doc['emit'] and doc['file_name'].startswith(directory):
+                    src = Path(doc['file_name'])
+                    dest = Path(os.path.join(os.path.join(self.emited_path,
                                                           directory),
-                                             doc[0]))
+                                             doc['file_name']))
                     os.replace(src, dest)
+        msg = "A emissão foi realizada com sucesso."
+        title = "Documentos emitidos"
+        msgbox(msg, title)
 
     def get_file_name(self, doc):
         filename = doc[:self.file_num_caract]
@@ -405,7 +337,7 @@ class Emission:
 
     def get_probably_name(self):
         doc_name = self.docs[0]
-        probably_name = doc_name[0][9:12]
+        probably_name = doc_name['file_name'][9:12]
 
         return probably_name
 
@@ -456,35 +388,22 @@ class Emission:
         else:
             return False
 
-    @staticmethod
-    def get_cover_cell(rev):
-        if rev == 0 or rev == 5:
-            column = 3
-        elif rev == 1 or rev == 6:
-            column = 5
-        elif rev == 2 or rev == 7:
-            column = 7
-        elif rev == 3 or rev == 8:
-            column = 8
-        elif rev == 4 or rev == 9:
-            column = 11
-
-        if rev <= 4:
-            row = 32
-        else:
-            row = 37
-
-        return [row, column]
-    
     #TODO : Verificar arquivos que terminam com Rev
+
+    @staticmethod
+    def text_box(msg, title):
+        if ccbox(msg, title):
+            pass
+        else:
+            sys.exit(0)
 
 
 if __name__ == '__main__':
     os.chdir(r'C:\Users\Bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
-    emis.check_pattern()
+    emis.check_filename_pattern()
     emis.check_files()
-    emis.get_ld_information()
+    emis.ld_information = emis.get_ld_information()
     emis.check_open_files()
     emis.create_zip()
     emis.create_ld()

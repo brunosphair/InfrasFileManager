@@ -5,11 +5,11 @@ from pathlib import Path
 from easygui import buttonbox, ccbox, multchoicebox, enterbox, msgbox, \
                     multenterbox
 from zipfile import ZipFile
-import openpyxl
 import datetime
 from dotenv import dotenv_values
 
-from excel_functions import get_grd_number, create_excel_grd
+from excel_functions import get_grd_number, create_excel_grd, \
+                            get_acronym_default_list, get_cover_cell
 
 
 class Emission:
@@ -119,8 +119,9 @@ class Emission:
         ignored_files = []
         for doc in self.docs:
             if not self.verify_pattern(doc['file_name']):
-                ignored_files.append(doc['file_name'])
                 doc['emit'] = False
+                if not doc['file_name'].startswith('InfrasEmission'):
+                    ignored_files.append(doc['file_name'])
 
         if len(ignored_files):
             msg = "Os seguintes arquivos não serão emitidos, pois não "\
@@ -265,7 +266,7 @@ class Emission:
             output = multenterbox(text, title, input_list, default_list)
             ld_information["project_title"] = output[1]
             ld_information["ld_title"] = "\n".join(output)\
-                                              + "\nLISTA DE DOCUMENTOS"
+                                         + "\nLISTA DE DOCUMENTOS"
 
         text = "Defina as iniciais dos responsáveis (formato XXX)"
         title = "Defina as iniciais"
@@ -274,17 +275,10 @@ class Emission:
             default_list = ["XXX", "XXX", "XXX"]
         else:
             revision = self.ld_rev + 1
-            previous_cover_cell = self.get_cover_cell(revision - 1)
+            previous_cover_cell = get_cover_cell(revision - 1)
             book_path = os.path.join(self.emited_path, '_LDs', self.ld_name)
-            wb = openpyxl.load_workbook(book_path, read_only=True)
-            cover_sheet = wb['Capa']
-            d1 = cover_sheet.cell(row=previous_cover_cell[0] + 1,
-                                  column=previous_cover_cell[1]).value
-            d2 = cover_sheet.cell(row=previous_cover_cell[0] + 2,
-                                  column=previous_cover_cell[1]).value
-            d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3,
-                                  column=previous_cover_cell[1]).value
-            default_list = [d1, d2, d3]
+            default_list = get_acronym_default_list(book_path,
+                                                    previous_cover_cell)
         output = multenterbox(text, title, input_list, default_list)
         ld_information["acronym1"] = output[0]
         ld_information["acronym2"] = output[1]
@@ -333,6 +327,9 @@ class Emission:
                                                           directory),
                                              doc['file_name']))
                     os.replace(src, dest)
+        msg = "A emissão foi realizada com sucesso."
+        title = "Documentos emitidos"
+        msgbox(msg, title)
 
     def get_file_name(self, doc):
         filename = doc[:self.file_num_caract]
@@ -399,6 +396,7 @@ class Emission:
             pass
         else:
             sys.exit(0)
+
 
 if __name__ == '__main__':
     os.chdir(r'C:\Users\Bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')

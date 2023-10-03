@@ -388,7 +388,7 @@ class Emission:
         else:
             return False
 
-    #TODO : Verificar arquivos que terminam com Rev
+#   TODO : Verificar arquivos que terminam com Rev
 
     @staticmethod
     def text_box(msg, title):

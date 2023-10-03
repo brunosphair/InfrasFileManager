@@ -204,7 +204,7 @@ def reorder_description_cells(cover_sheet):
         copy_values(cover_sheet, row + 17, 2, row + 16, 2)
         copy_values(cover_sheet, row + 17, 3, row + 16, 3)
 
+
 def copy_values(cover_sheet, from_row, from_column, to_row, to_column):
     cover_sheet.cell(row=to_row,
                      column=to_column).value = cover_sheet.cell(row=from_row, column=from_column).value
-

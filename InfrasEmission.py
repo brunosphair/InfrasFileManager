@@ -63,9 +63,11 @@ class Emission:
         the name of the files which was alredy emited.
         '''
         directories = []
-        for file in os.listdir(self.emited_path):
-            if os.path.isdir(os.path.join(self.emited_path, file)):
-                directories.append(file)
+        for path, subdirs, files in os.walk(self.emited_path):
+            directories = {}
+            for subdir in subdirs:
+                directories[subdir] = os.path.relpath(path, self.emited_path)
+
         return directories
 
     def get_ld_rev(self):
@@ -147,47 +149,44 @@ class Emission:
                 doc_directory = os.path.join(self.emited_path, path_name)
                 if os.path.isdir(doc_directory):
                     for file in os.listdir(doc_directory):
-                        try:
-                            file_name = self.get_file_name(file)
-                            if self.get_revision(file
-                                                 ) == doc['rev'] and file_name == doc_name:
-                                raise NameError
-                        except NameError:
-                            msg = 'O arquivo ' + doc_name + ' com a revisão '\
-                                + str(doc['rev']) \
-                                + ' já existe. O que deseja fazer?'
-                            choices = [
-                                       "Não emitir esse arquivo",
-                                       "Emitir mesmo assim",
-                                       "Cancelar"
-                                       ]
-                            title = "Arquivo duplicado"
-                            choice = buttonbox(msg, title, choices)
-                            if choice == "Não emitir esse arquivo":
-                                # print("arquivo ignorado")
-                                doc['emit'] = False
-                            elif choice == "Emitir mesmo assim":
-                                obsolete_path = os.path.join(doc_directory,
-                                                             "Obsoleto")
-                                if not os.path.isdir(obsolete_path):
-                                    os.mkdir(obsolete_path)
-                                i = 1
-                                file_aux = file
-                                while os.path.isfile(
-                                    os.path.join(obsolete_path,
-                                                 file_aux)):
-                                    file_aux = os.path.splitext(file)[0]\
-                                        + "(" + str(i) + ")"\
-                                        + os.path.splitext(file)[0]
-                                    i += 1
-                                file_source_path = os.path.join(doc_directory,
-                                                                file)
-                                file_destiny_path = os.path.join(obsolete_path,
-                                                                 file_aux)
-                                os.replace(file_source_path, file_destiny_path)
-                                doc['emit'] = True
-                            elif choice == "Cancelar":
-                                sys.exit(0)
+                        file_name = self.get_file_name(file)
+                        if self.get_revision(file
+                                                ) == doc['rev'] and file_name == doc_name:
+                            self.duplicated_file(doc_name, doc, doc_directory,
+                                                 file)
+
+    @staticmethod
+    def duplicated_file(doc_name, doc, doc_directory, file):
+        msg = 'O arquivo ' + doc_name + ' com a revisão '\
+            + str(doc['rev']) \
+            + ' já existe. O que deseja fazer?'
+        choices = [
+                    "Não emitir esse arquivo",
+                    "Emitir mesmo assim",
+                    "Cancelar"
+                    ]
+        title = "Arquivo duplicado"
+        choice = buttonbox(msg, title, choices)
+        if choice == "Não emitir esse arquivo":
+            # print("arquivo ignorado")
+            doc['emit'] = False
+        elif choice == "Emitir mesmo assim":
+            obsolete_path = os.path.join(doc_directory, "Obsoleto")
+            if not os.path.isdir(obsolete_path):
+                os.mkdir(obsolete_path)
+            i = 1
+            file_aux = file
+            while os.path.isfile(os.path.join(obsolete_path, file_aux)):
+                file_aux = os.path.splitext(file)[0]\
+                    + "(" + str(i) + ")"\
+                    + os.path.splitext(file)[0]
+                i += 1
+            file_source_path = os.path.join(doc_directory, file)
+            file_destiny_path = os.path.join(obsolete_path, file_aux)
+            os.replace(file_source_path, file_destiny_path)
+            doc['emit'] = True
+        elif choice == "Cancelar":
+            sys.exit(0)
 
     def confirm_files(self):
         list_of_options = []
@@ -332,8 +331,8 @@ class Emission:
             if item not in self.directories:
                 dir_to_create = os.path.join(self.emited_path, item)
                 os.mkdir(dir_to_create)
-                self.directories.append(item)
-        for directory in self.directories:
+                self.directories[item] = '.'
+        for directory in self.directories.keys():
             for doc in self.docs:
                 if doc['emit'] and doc['file_name'].startswith(directory):
                     src = Path(os.path.join(doc['subdir'], doc['file_name']))

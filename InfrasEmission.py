@@ -34,13 +34,15 @@ class Emission:
         revision number and declares the 'emit' key as True.
         '''
         docs = []
-        for file in os.listdir('.'):
-            if os.path.isfile(file):
+        for path, subdir, files in os.walk('.'):
+            for file in files:
+                # if os.path.isfile(file):
                 dict = {}
                 rev = self.get_revision(file)
                 dict['file_name'] = file
                 dict['rev'] = rev
                 dict['emit'] = True
+                dict['subdir'] = os.path.relpath(path)
                 docs.append(dict)
         return docs
 
@@ -131,6 +133,13 @@ class Emission:
             self.text_box(msg, title)
 
     def check_files(self):
+        '''
+        Checks if the file being issued is already on the issued path. The user
+        can choice between cancel the operation, dont issue the doc or issue
+        aniway. If the choice was issue anyway, a new folder is created inside
+        the doc folder with the name "Obsoleto", and the old file is moved
+        inside this folder
+        '''
         for doc in self.docs:
             if doc['emit']:
                 path_name = doc['file_name'][:self.file_num_caract]
@@ -179,6 +188,8 @@ class Emission:
                                 doc['emit'] = True
                             elif choice == "Cancelar":
                                 sys.exit(0)
+
+    def confirm_files(self):
         list_of_options = []
         for doc in self.docs:
             if doc['emit']:
@@ -205,7 +216,7 @@ class Emission:
         zipObj = ZipFile(self.grd_name + '.zip', 'w')
         for doc in self.docs:
             if doc['emit']:
-                zipObj.write(doc['file_name'])
+                zipObj.write(os.path.join(doc['subdir'], doc['file_name']))
         zipObj.close()
 
     def create_ld(self):
@@ -287,12 +298,15 @@ class Emission:
         return ld_information
 
     def check_open_files(self):
+        '''
+        Checks if a file is open
+        '''
         file_open = True
         while file_open:
             try:
                 for doc in self.docs:
                     if doc['emit']:
-                        src = Path(doc['file_name'])
+                        src = Path(os.path.join(doc['subdir'], doc['file_name']))
                         os.replace(src, src)
                 file_open = False
             except OSError:
@@ -399,10 +413,11 @@ class Emission:
 
 
 if __name__ == '__main__':
-    # os.chdir(r'C:\Users\Bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
+    os.chdir(r'C:\Users\ATLSUL_003\Documents\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_filename_pattern()
     emis.check_files()
+    emis.confirm_files()
     emis.ld_information = emis.get_ld_information()
     emis.check_open_files()
     emis.create_zip()

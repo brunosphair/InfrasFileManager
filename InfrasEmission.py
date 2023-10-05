@@ -336,7 +336,7 @@ class Emission:
         for directory in self.directories:
             for doc in self.docs:
                 if doc['emit'] and doc['file_name'].startswith(directory):
-                    src = Path(doc['file_name'])
+                    src = Path(os.path.join(doc['subdir'], doc['file_name']))
                     dest = Path(os.path.join(os.path.join(self.emited_path,
                                                           directory),
                                              doc['file_name']))

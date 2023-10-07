@@ -339,20 +339,14 @@ class Emission:
                 folder_name = self.get_folder_name(doc['file_name'],
                                                    self.file_num_caract)
                 if folder_name not in self.directories:
-                    # filenames.append(doc['file_name'][:self.file_num_caract])
-                    # set(filenames)
-                    # If the file directory doesn't exists, the code creates it
-                    # if folder_name not in self.directories:
                     dir_to_create = os.path.join(self.emited_path,
                                                  doc['subdir'], folder_name)
                     dirs_to_create[folder_name] = dir_to_create
                     self.directories[folder_name] = doc['subdir']
-                    # os.mkdir(dir_to_create)
                 else:
                     self.check_file(doc, folder_name)
-        
+
         return dirs_to_create
-        # self.create_dirs(dirs_to_create)
 
     @staticmethod
     def create_dirs(dirs_to_create):
@@ -457,4 +451,3 @@ if __name__ == '__main__':
     emis.create_zip()
     emis.create_ld()
     emis.move_files()
-

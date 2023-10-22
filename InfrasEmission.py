@@ -34,14 +34,23 @@ class Emission:
         revision number and declares the 'emit' key as True.
         '''
         docs = []
-        for file in os.listdir('.'):
-            if os.path.isfile(file):
-                dict = {}
-                rev = self.get_revision(file)
-                dict['file_name'] = file
-                dict['rev'] = rev
-                dict['emit'] = True
-                docs.append(dict)
+        file_names = []
+        for path, subdir, files in os.walk('.'):
+            for file in files:
+                if file not in file_names:
+                    file_names.append(file)
+                    dict = {}
+                    rev = self.get_revision(file)
+                    dict['file_name'] = file
+                    dict['rev'] = rev
+                    dict['emit'] = True
+                    dict['subdir'] = os.path.relpath(path)
+                    docs.append(dict)
+                else:
+                    msg = "Há dois arquivos com o nome " + file + " dentro da emissão"
+                    title = "ERRO"
+                    msgbox(msg, title)
+                    sys.exit(0)
         return docs
 
     def get_emited_path(self):
@@ -60,10 +69,11 @@ class Emission:
         Return all the directories in the 3_Emitidos path. Therefore, returns
         the name of the files which was alredy emited.
         '''
-        directories = []
-        for file in os.listdir(self.emited_path):
-            if os.path.isdir(os.path.join(self.emited_path, file)):
-                directories.append(file)
+        directories = {}
+        for path, subdirs, files in os.walk(self.emited_path):
+            for subdir in subdirs:
+                directories[subdir] = os.path.relpath(path, self.emited_path)
+
         return directories
 
     def get_ld_rev(self):
@@ -130,60 +140,67 @@ class Emission:
             title = "Inconsistência na nomenclatura dos arquivos"
             self.text_box(msg, title)
 
-    def check_files(self):
-        for doc in self.docs:
-            if doc['emit']:
-                path_name = doc['file_name'][:self.file_num_caract]
-                doc_name = self.get_file_name(doc['file_name'])
-                doc_directory = os.path.join(self.emited_path, path_name)
-                if os.path.isdir(doc_directory):
-                    for file in os.listdir(doc_directory):
-                        try:
-                            file_name = self.get_file_name(file)
-                            if self.get_revision(file
-                                                 ) == doc['rev'] and file_name == doc_name:
-                                raise NameError
-                        except NameError:
-                            msg = 'O arquivo ' + doc_name + ' com a revisão '\
-                                + str(doc['rev']) \
-                                + ' já existe. O que deseja fazer?'
-                            choices = [
-                                       "Não emitir esse arquivo",
-                                       "Emitir mesmo assim",
-                                       "Cancelar"
-                                       ]
-                            title = "Arquivo duplicado"
-                            choice = buttonbox(msg, title, choices)
-                            if choice == "Não emitir esse arquivo":
-                                # print("arquivo ignorado")
-                                doc['emit'] = False
-                            elif choice == "Emitir mesmo assim":
-                                obsolete_path = os.path.join(doc_directory,
-                                                             "Obsoleto")
-                                if not os.path.isdir(obsolete_path):
-                                    os.mkdir(obsolete_path)
-                                i = 1
-                                file_aux = file
-                                while os.path.isfile(
-                                    os.path.join(obsolete_path,
-                                                 file_aux)):
-                                    file_aux = os.path.splitext(file)[0]\
-                                        + "(" + str(i) + ")"\
-                                        + os.path.splitext(file)[0]
-                                    i += 1
-                                file_source_path = os.path.join(doc_directory,
-                                                                file)
-                                file_destiny_path = os.path.join(obsolete_path,
-                                                                 file_aux)
-                                os.replace(file_source_path, file_destiny_path)
-                                doc['emit'] = True
-                            elif choice == "Cancelar":
-                                sys.exit(0)
+    def check_file(self, doc, folder_name):
+        '''
+        Checks if the file being issued is already on the issued path. The user
+        can choice between cancel the operation, dont issue the doc or issue
+        aniway. If the choice was issue anyway, a new folder is created inside
+        the doc folder with the name "Obsoleto", and the old file is moved
+        inside this folder
+        '''
+        doc_name = self.get_file_name(doc['file_name'])
+        doc_directory = os.path.join(self.emited_path,
+                                     self.directories[folder_name],
+                                     folder_name)
+        if os.path.isdir(doc_directory):
+            for file in os.listdir(doc_directory):
+                file_name = self.get_file_name(file)
+                if self.get_revision(file
+                                        ) == doc['rev'] and file_name == doc_name:
+                    self.duplicated_file(doc_name, doc, doc_directory, file)
+
+    @staticmethod
+    def duplicated_file(doc_name, doc, doc_directory, file):
+        msg = 'O arquivo ' + doc_name + ' com a revisão '\
+            + str(doc['rev']) \
+            + ' já existe. O que deseja fazer?'
+        choices = [
+                    "Não emitir esse arquivo",
+                    "Emitir mesmo assim",
+                    "Cancelar"
+                    ]
+        title = "Arquivo duplicado"
+        choice = buttonbox(msg, title, choices)
+        if choice == "Não emitir esse arquivo":
+            # print("arquivo ignorado")
+            doc['emit'] = False
+        elif choice == "Emitir mesmo assim":
+            obsolete_path = os.path.join(doc_directory, "Obsoleto")
+            if not os.path.isdir(obsolete_path):
+                os.mkdir(obsolete_path)
+            i = 1
+            file_aux = file
+            while os.path.isfile(os.path.join(obsolete_path, file_aux)):
+                file_aux = os.path.splitext(file)[0]\
+                    + "(" + str(i) + ")"\
+                    + os.path.splitext(file)[0]
+                i += 1
+            file_source_path = os.path.join(doc_directory, file)
+            file_destiny_path = os.path.join(obsolete_path, file_aux)
+            os.replace(file_source_path, file_destiny_path)
+            doc['emit'] = True
+        elif choice == "Cancelar":
+            sys.exit(0)
+
+    def confirm_files(self, dirs_to_create):
         list_of_options = []
         for doc in self.docs:
             if doc['emit']:
                 list_of_options.append(doc['file_name'])
         if len(list_of_options) == 0:
+            msg = "Não há arquivos para serem emitidos."
+            title = "Erro"
+            msgbox(msg, title)
             sys.exit(0)
         elif len(list_of_options) == 1:
             ccbox("O seguinte arquivo será emitido:\n\n" + list_of_options[0])
@@ -200,12 +217,16 @@ class Emission:
             for doc in self.docs:
                 if not doc['file_name'] in choices:
                     doc['emit'] = False
+                    folder_name = self.get_folder_name(doc['file_name'],
+                                                       self.file_num_caract)
+                    if folder_name in dirs_to_create:
+                        del dirs_to_create[folder_name]
 
     def create_zip(self):
         zipObj = ZipFile(self.grd_name + '.zip', 'w')
         for doc in self.docs:
             if doc['emit']:
-                zipObj.write(doc['file_name'])
+                zipObj.write(os.path.join(doc['subdir'], doc['file_name']))
         zipObj.close()
 
     def create_ld(self):
@@ -287,12 +308,15 @@ class Emission:
         return ld_information
 
     def check_open_files(self):
+        '''
+        Checks if a file is open
+        '''
         file_open = True
         while file_open:
             try:
                 for doc in self.docs:
                     if doc['emit']:
-                        src = Path(doc['file_name'])
+                        src = Path(os.path.join(doc['subdir'], doc['file_name']))
                         os.replace(src, src)
                 file_open = False
             except OSError:
@@ -306,24 +330,41 @@ class Emission:
                 elif output == "Cancelar":
                     sys.exit(0)
 
-    def move_files(self):
+    def issued_directories(self):
         # Deletes the revision suffix from the filename
-        filenames = []
+        # filenames = []
+        dirs_to_create = {}
         for doc in self.docs:
             if doc['emit']:
-                filenames.append(doc['file_name'][:self.file_num_caract])
-        set(filenames)
-        # If the file directory doesn't exists, the code creates it
-        for item in filenames:
-            if item not in self.directories:
-                dir_to_create = os.path.join(self.emited_path, item)
-                os.mkdir(dir_to_create)
-                self.directories.append(item)
-        for directory in self.directories:
+                folder_name = self.get_folder_name(doc['file_name'],
+                                                   self.file_num_caract)
+                if folder_name not in self.directories:
+                    dir_to_create = os.path.join(self.emited_path,
+                                                 doc['subdir'], folder_name)
+                    dirs_to_create[folder_name] = dir_to_create
+                    self.directories[folder_name] = doc['subdir']
+                else:
+                    self.check_file(doc, folder_name)
+
+        return dirs_to_create
+
+    @staticmethod
+    def create_dirs(dirs_to_create):
+        for dir in dirs_to_create.values():
+            Path(dir).mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def get_folder_name(filename, num_caract):
+        folder_name = filename[:num_caract]
+        return folder_name
+
+    def move_files(self):
+        for directory in self.directories.keys():
             for doc in self.docs:
                 if doc['emit'] and doc['file_name'].startswith(directory):
-                    src = Path(doc['file_name'])
+                    src = Path(os.path.join(doc['subdir'], doc['file_name']))
                     dest = Path(os.path.join(os.path.join(self.emited_path,
+                                                          self.directories[directory],
                                                           directory),
                                              doc['file_name']))
                     os.replace(src, dest)
@@ -399,14 +440,14 @@ class Emission:
 
 
 if __name__ == '__main__':
-    os.chdir(r'C:\Users\Bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
+    os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_filename_pattern()
-    emis.check_files()
+    dirs_to_create = emis.issued_directories()
+    emis.confirm_files(dirs_to_create)
+    emis.create_dirs(dirs_to_create)
     emis.ld_information = emis.get_ld_information()
     emis.check_open_files()
     emis.create_zip()
     emis.create_ld()
     emis.move_files()
-    # print(emis.get_project_number())
-    # print(emis.verify_pattern("IFS-2122-110-B-CP-00001_R0"))

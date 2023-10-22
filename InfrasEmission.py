@@ -440,7 +440,7 @@ class Emission:
 
 
 if __name__ == '__main__':
-    os.chdir(r'C:\Users\ATLSUL_003\Documents\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
+    os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_filename_pattern()
     dirs_to_create = emis.issued_directories()

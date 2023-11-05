@@ -13,20 +13,21 @@ from excel_functions import get_grd_number, create_excel_grd, \
 
 
 class Emission:
-    def __init__(self):
-        self.doc_reg_expression, self.rev_reg_expression = \
+    def __init__(self, test_mode=False):
+        if not test_mode:
+            self.doc_reg_expression, self.rev_reg_expression = \
                                                     self.get_reg_expressions()
-        self.emited_path = self.get_emited_path()
-        self.docs = self.get_files()
-        self.directories = self.get_emited_directories()
-        self.ld_rev = self.get_ld_rev()
-        self.project_number = self.get_project_number()
-        self.grd_number = get_grd_number(self.emited_path, self.ld_name)
-        self.grd_name = 'IFS-GRD-' + \
-                        str(self.project_number) + \
-                        "-" + str(self.grd_number).zfill(3)
-        self.file_num_caract = 23
-        self.ld_information = {}
+            self.emited_path = self.get_emited_path()
+            self.docs = self.get_files()
+            self.directories = self.get_emited_directories()
+            self.ld_rev = self.get_ld_rev()
+            self.project_number = self.get_project_number()
+            self.grd_number = get_grd_number(self.emited_path, self.ld_name)
+            self.grd_name = 'IFS-GRD-' + \
+                            str(self.project_number) + \
+                            "-" + str(self.grd_number).zfill(3)
+            self.file_num_caract = 23
+            self.ld_information = {}
 
     def get_files(self):
         '''
@@ -40,7 +41,7 @@ class Emission:
                 if file not in file_names:
                     file_names.append(file)
                     dict = {}
-                    rev = self.get_revision(file)
+                    rev = self.get_revision(self.rev_reg_expression, file)
                     dict['file_name'] = file
                     dict['rev'] = rev
                     dict['emit'] = True
@@ -128,7 +129,7 @@ class Emission:
         '''
         ignored_files = []
         for doc in self.docs:
-            if not self.verify_pattern(doc['file_name']):
+            if not self.verify_pattern(self.doc_reg_expression, doc['file_name']):
                 doc['emit'] = False
                 if not doc['file_name'].startswith('InfrasEmission'):
                     ignored_files.append(doc['file_name'])
@@ -155,8 +156,8 @@ class Emission:
         if os.path.isdir(doc_directory):
             for file in os.listdir(doc_directory):
                 file_name = self.get_file_name(file)
-                if self.get_revision(file
-                                        ) == doc['rev'] and file_name == doc_name:
+                if self.get_revision(self.rev_reg_expression, file
+                                     ) == doc['rev'] and file_name == doc_name:
                     self.duplicated_file(doc_name, doc, doc_directory, file)
 
     @staticmethod
@@ -382,9 +383,10 @@ class Emission:
 
         return probably_name
 
-    def get_revision(self, doc):
+    @staticmethod
+    def get_revision(rev_reg_expression, doc):
         filename = os.path.splitext(doc)[0]
-        pattern = self.rev_reg_expression
+        pattern = rev_reg_expression
         if re.search(pattern, os.path.splitext(filename)[0]) is not None:
             rev = re.search(pattern, os.path.splitext(filename)[0]).group()
             rev = int(''.join(filter(str.isdigit, rev)))
@@ -392,9 +394,10 @@ class Emission:
             rev = 0
         return rev
 
-    def verify_pattern(self, doc_name):
+    @staticmethod
+    def verify_pattern(doc_reg_expression, doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
-        pattern = self.doc_reg_expression
+        pattern = doc_reg_expression
         if re.match(pattern, doc_name_no_extension):
             return True
         else:

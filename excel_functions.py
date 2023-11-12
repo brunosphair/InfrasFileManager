@@ -115,7 +115,7 @@ def get_cover_cell(rev):
         column = 7
     elif rev == 3 or rev == 8:
         column = 8
-    elif rev == 4 or rev == 9:
+    elif rev == 4 or rev >= 9:
         column = 11
 
     if rev <= 4:

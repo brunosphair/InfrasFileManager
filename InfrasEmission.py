@@ -6,7 +6,7 @@ from easygui import buttonbox, ccbox, multchoicebox, enterbox, msgbox, \
                     multenterbox
 from zipfile import ZipFile
 import datetime
-from dotenv import dotenv_values
+from dotenv import load_dotenv
 
 from excel_functions import get_grd_number, create_excel_grd, \
                             get_acronym_default_list, get_cover_cell
@@ -16,6 +16,7 @@ class Emission:
     def __init__(self):
         self.doc_reg_expression, self.rev_reg_expression = \
                                                     self.get_reg_expressions()
+        self.file_num_caract = self.get_file_num_caract()
         self.emited_path = self.get_emited_path()
         self.docs = self.get_files()
         self.directories = self.get_emited_directories()
@@ -25,7 +26,6 @@ class Emission:
         self.grd_name = 'IFS-GRD-' + \
                         str(self.project_number) + \
                         "-" + str(self.grd_number).zfill(3)
-        self.file_num_caract = 23
         self.ld_information = {}
 
     def get_files(self):
@@ -96,17 +96,25 @@ class Emission:
         return last_revision
 
     def get_reg_expressions(self):
-        try:
-            config = dotenv_values('config.env')
-            print(config)
-            doc_reg_expression = config['DOC_REGULAR_EXPRESSION']
-            rev_reg_expression = config['REV_REGULAR_EXPRESSION']
-        except KeyError:
+        
+        load_dotenv()
+        doc_reg_expression = os.getenv("DOC_REG_EXPRESSION")
+        rev_reg_expression = os.getenv("REV_REG_EXPRESSION")
+        
+        if doc_reg_expression is None:
             doc_reg_expression = \
-                        r'^IFS-\d{4}-\d{3}-\w{1}-\w{2}-\d{5}.*(_R\d{1,2})?$'
+                    r'^IFS-\d{4}-\d{3}-\w{1}-\w{2}-\d{5}.*(_R\d{1,2})?$'
+        if rev_reg_expression is None:
             rev_reg_expression = r'(?i)_R\d+$'
 
         return doc_reg_expression, rev_reg_expression
+
+    def get_file_num_caract(self):
+        file_num_caract = int(os.getenv("FILE_NUM_CARACT"))
+        if file_num_caract is None:
+            file_num_caract = 23
+        
+        return file_num_caract
 
     def get_project_number(self):
         '''
@@ -440,7 +448,7 @@ class Emission:
 
 
 if __name__ == '__main__':
-    # os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2301 EMAP_Executivo\5_Engenharia\_PARA EMISSAO')
+    # os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_filename_pattern()
     dirs_to_create = emis.issued_directories()

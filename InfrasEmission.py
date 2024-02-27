@@ -110,9 +110,11 @@ class Emission:
         return doc_reg_expression, rev_reg_expression
 
     def get_file_num_caract(self):
-        file_num_caract = int(os.getenv("FILE_NUM_CARACT"))
+        file_num_caract = os.getenv("FILE_NUM_CARACT")
         if file_num_caract is None:
             file_num_caract = 23
+        else:
+            file_num_caract = int(file_num_caract)
         
         return file_num_caract
 
@@ -138,7 +140,8 @@ class Emission:
         for doc in self.docs:
             if not self.verify_pattern(doc['file_name']):
                 doc['emit'] = False
-                if not doc['file_name'].startswith('InfrasEmission'):
+                if not (doc['file_name'].startswith('InfrasEmission') or
+                        doc['file_name'] == '.env'):
                     ignored_files.append(doc['file_name'])
 
         if len(ignored_files):

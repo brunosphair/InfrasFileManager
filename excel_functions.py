@@ -70,7 +70,7 @@ def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
         cover_sheet.cell(row=5, column=1).value = ld_information["ld_title"]
     else:
         revision = ld_rev + 1
-        ld_name = ld_name[:file_num_caract] \
+        ld_name = ld_name[:23] \
             + '_R' \
             + str(revision)
         last_grd = book['GRD-' + str(grd_number - 1).zfill(3)]

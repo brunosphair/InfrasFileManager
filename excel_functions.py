@@ -79,9 +79,12 @@ def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
     cover_sheet.cell(row=6, column=12).value = revision
     if revision > 13:
         reorder_description_cells(cover_sheet)
-    cover_sheet.cell(row=16 + revision, column=1).value = revision
-    cover_sheet.cell(row=16 + revision, column=2).value = "C"
-    cover_sheet.cell(row=16 + revision, column=3).value = grd_name
+        input_row = 29
+    else:
+        input_row = 16 + revision
+    cover_sheet.cell(input_row, column=1).value = revision
+    cover_sheet.cell(input_row, column=2).value = "C"
+    cover_sheet.cell(input_row, column=3).value = grd_name
     rev_cell = get_cover_cell(revision)
     rev_row = rev_cell[0]
     rev_column = rev_cell[1]
@@ -176,14 +179,8 @@ def reorder_rev_cells(cover_sheet, revision):
     copy_values(cover_sheet, 38, 7, 38, 5)
     copy_values(cover_sheet, 39, 7, 39, 5)
     copy_values(cover_sheet, 40, 7, 40, 5)
-    # Column G to E - LINHA 2
-    copy_values(cover_sheet, 36, 7, 36, 5)
-    copy_values(cover_sheet, 37, 7, 37, 5)
-    copy_values(cover_sheet, 38, 7, 38, 5)
-    copy_values(cover_sheet, 39, 7, 39, 5)
-    copy_values(cover_sheet, 40, 7, 40, 5)
     # Column H to G - LINHA 2
-    copy_values(cover_sheet, 36, 7, 36, 5)
+    copy_values(cover_sheet, 36, 8, 36, 7)
     copy_values(cover_sheet, 37, 8, 37, 7)
     copy_values(cover_sheet, 38, 8, 38, 7)
     copy_values(cover_sheet, 39, 8, 39, 7)
@@ -199,10 +196,10 @@ def reorder_rev_cells(cover_sheet, revision):
 
 
 def reorder_description_cells(cover_sheet):
-    for row in reversed(range(13)):
-        copy_values(cover_sheet, row + 17, 1, row + 16, 1)
-        copy_values(cover_sheet, row + 17, 2, row + 16, 2)
-        copy_values(cover_sheet, row + 17, 3, row + 16, 3)
+    for row in range(13):
+        copy_values(cover_sheet, row + 18, 1, row + 17, 1)
+        copy_values(cover_sheet, row + 18, 2, row + 17, 2)
+        copy_values(cover_sheet, row + 18, 3, row + 17, 3)
 
 
 def copy_values(cover_sheet, from_row, from_column, to_row, to_column):

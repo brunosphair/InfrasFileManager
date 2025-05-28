@@ -291,10 +291,10 @@ class Emission:
             title = "Definir títulos"
             input_list = ["1ª LINHA - TIPO DE PROJETO ",
                           "2ª LINHA - TÍTULO DO PROJETO",
-                          "3ª LINHA - TÍTULO DO DOCUMENTO"]
+                          "3ª LINHA - SUBTÍTULO DO PROJETO"]
             default_list = ["PROJETO CONCEITUAL/BÁSICO/EXECUTIVO",
-                            "TÍTULO DO PROJETO",
-                            "TÍTULO DO DOCUMENTO"]
+                            "EXEMPLO (NOME DO PORTO)",
+                            "EXEMPLO (PROJETO DE DRAGAGEM)"]
             output = multenterbox(text, title, input_list, default_list)
             ld_information["project_title"] = output[1]
             ld_information["ld_title"] = "\n".join(output)\
@@ -396,8 +396,8 @@ class Emission:
     def get_revision(self, doc):
         filename = os.path.splitext(doc)[0]
         pattern = self.rev_reg_expression
-        if re.search(pattern, os.path.splitext(filename)[0]) is not None:
-            rev = re.search(pattern, os.path.splitext(filename)[0]).group()
+        if re.search(pattern, filename) is not None:
+            rev = re.search(pattern, filename).group()
             rev = int(''.join(filter(str.isdigit, rev)))
         else:
             rev = 0
@@ -451,7 +451,7 @@ class Emission:
 
 
 if __name__ == '__main__':
-    # os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2301 EMAP_Executivo\5_Engenharia\_PARA EMISSAO')
+    os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_filename_pattern()
     dirs_to_create = emis.issued_directories()

@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import stat
 from pathlib import Path
 from easygui import buttonbox, ccbox, multchoicebox, enterbox, msgbox, \
                     multenterbox
@@ -37,17 +38,24 @@ class Emission:
         file_names = []
         for path, subdir, files in os.walk('.'):
             for file in files:
+
+                full_path = os.path.join(path, file)
+
+                # Ignorar arquivos ocultos
+                if file.startswith('.') or self.is_hidden(full_path):
+                    continue
+
                 if file not in file_names:
                     file_names.append(file)
-                    dict = {}
+                    dict_item = {}
                     rev = self.get_revision(file)
-                    dict['file_name'] = file
-                    dict['rev'] = rev
-                    dict['emit'] = True
-                    dict['subdir'] = os.path.relpath(path)
-                    docs.append(dict)
+                    dict_item['file_name'] = file
+                    dict_item['rev'] = rev
+                    dict_item['emit'] = True
+                    dict_item['subdir'] = os.path.relpath(path)
+                    docs.append(dict_item)
                 else:
-                    msg = "Há dois arquivos com o nome " + file + " dentro da emissão"
+                    msg = f"Há dois arquivos com o nome {file} dentro da emissão"
                     title = "ERRO"
                     msgbox(msg, title)
                     sys.exit(0)
@@ -418,6 +426,17 @@ class Emission:
             return True
         else:
             return False
+        
+    @staticmethod
+    def is_hidden(filepath):
+        name = os.path.basename(filepath)
+        if name.startswith('.'):
+            return True
+        try:
+            # Windows: FILE_ATTRIBUTE_HIDDEN = 0x02
+            return bool(os.stat(filepath).st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+        except Exception:
+            return False
 
     @staticmethod
     def get_ld_revision(doc_name):
@@ -451,7 +470,7 @@ class Emission:
 
 
 if __name__ == '__main__':
-    os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
+    # os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
     emis.check_filename_pattern()
     dirs_to_create = emis.issued_directories()

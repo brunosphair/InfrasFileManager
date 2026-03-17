@@ -15,44 +15,22 @@ from excel_functions import get_grd_number, create_excel_grd, \
 
 class Emission:
     def __init__(self):
-        #Sao as duas expressoes regulares do nome do documento e da revisao
-        #Ele so precisa o .env no mesmo arquivo que esta o .exe
         load_dotenv()
         self.doc_reg_expression, self.rev_reg_expression = \
                                                     self.get_reg_expressions()
-        #nmr caracteres do arquivo
-        #Ele precisa do .env para definir o numero de caracteres do nome do arquivo, caso nao tenha, ele define como 23 caracteres, que eh o numero de caracteres do nome do arquivo sem a parte da revisao e da extensao.
         self.file_num_caract = self.get_file_num_caract()
-        #path 3_emitidos
-        #nao tera que mudar, funciona nos dois
         self.emited_path = self.get_emited_path()
-        #Lista de arquivos a serem emitidos, com nome, revisao, subdiretorio e se vai ser emitido ou nao
-        #Nao precisa de mudanca
+        self.ld_path = self.get_ld_path()
         self.docs = self.get_files()
-        #Dicionario com os nomes das pastas ja emitidas, para verificar se a pasta do arquivo a ser emitido ja existe ou nao
-        #A principio esta funcionando
         self.directories = self.get_emited_directories()
-        #Retorna a revisao da ultima LD emitida, para comparar com a nova LD a ser criada. Se for a primeira LD, retorna -1
-        #(LD eh a planilha que tem a lista de documentos emitidos)
-        #Tera que mudar
         self.ld_rev = self.get_ld_rev()
-        #Retorna o numero do projeto, para criar o nome da GRD e da LD 
-        #nao tera que mudar
         self.project_number = self.get_project_number()
-        #Retorna o numero da GRD a ser criada, para criar o nome da GRD
-        #ERRO
-        #Mudar muito!
-        self.grd_number = get_grd_number(self.emited_path, self.ld_name)
-        #Cria o nome da GRD a ser criada
+        self.grd_number = get_grd_number(self.emited_path, self.ld_path, self.ld_name)
         self.grd_name = 'IFS-GRD-' + \
                         str(self.project_number) + \
                         "-" + str(self.grd_number).zfill(3)
         self.ld_information = {}
 
-        print(self.emited_path)
-        print(self.docs)
-        print(self.directories)
-        print(self.ld_rev)
 
     def get_files(self):
         '''
@@ -96,6 +74,17 @@ class Emission:
         if not os.path.isdir(issued_path):
             raise FileNotFoundError("A pasta 3_Emitidos não foi encontrada")
         return issued_path
+    
+    def get_ld_path(self):
+        '''
+        Returns the path to the folder containing the LDs.
+        '''
+        ld_path = os.path.join(self.emited_path, '_LDs')
+        if not os.path.isdir(ld_path):
+            ld_path = os.path.join(os.getcwd(), "00_LDs")
+        if not os.path.isdir(ld_path):
+            raise FileNotFoundError("A pasta de LDs não foi encontrada")
+        return ld_path
 
     def get_emited_directories(self):
         '''
@@ -106,7 +95,7 @@ class Emission:
         directories = {}
         for path, subdirs, files in os.walk(self.emited_path):
             for subdir in subdirs:
-                                      #Retorna o caminho relativo da pasta em relacao a pasta 3_Emitidos, para depois criar o mesmo caminho dentro da pasta 3_Emitidos
+                                      
                 directories[subdir] = os.path.relpath(path, self.emited_path)
 
         return directories
@@ -116,15 +105,8 @@ class Emission:
         Returns the revision of the last LD emited. If this is the first LD,
         then the function returns -1.
         '''
-        #Mudanca 1 - caso a pasta lds nao esteja dentro da pasta de emitidos (como consta no modelo antigo), ele procura dentro da pasta que esta sendo rodado o .exe
-        #onde fica o o novo 00_LDs.
-        lds_directory = os.path.join(self.emited_path, '_LDs')
-        if not os.path.isdir(lds_directory):
-            lds_directory = os.path.join(os.getcwd(), "00_LDs")
-        if not os.path.isdir(lds_directory):
-            #Aqui eh o local onde sera escrito o codigo para encontrar o caminho do arquivo ld da estrutura nova.
-            raise FileNotFoundError("A pasta _LDs não foi encontrada")
-        lds = os.listdir(lds_directory)
+        
+        lds = os.listdir(self.ld_path)
         self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsx'
         last_revision = -1
         for item in lds:
@@ -288,7 +270,7 @@ class Emission:
             if doc['emit'] and doc_name not in no_docs:
                 no_docs.append(doc_name)
                 grd_items.append([doc_name, doc['rev']])
-        create_excel_grd(self.emited_path, self.ld_name, self.grd_number,
+        create_excel_grd(self.emited_path, self.ld_path, self.ld_name, self.grd_number,
                          self.grd_name, self.ld_information, self.ld_rev,
                          self.file_num_caract, grd_items)
 
@@ -348,13 +330,8 @@ class Emission:
         else:
             revision = self.ld_rev + 1
             previous_cover_cell = get_cover_cell(revision - 1)
-            #book_path errado, funciona apenas quando o pasta de lds esta na pasta de emitidos
-            #book_path = os.path.join(self.emited_path, '_LDs', self.ld_name + '.xlsx')
-            book_path = os.path.join(self.emited_path, '_LDs', self.ld_name)
-
-            if not os.path.isfile(book_path):
-                #book_path = os.path.join(os.getcwd(), '00_LDs', self.ld_name + '.xlsx')
-                book_path = os.path.join(os.getcwd(), '00_LDs', self.ld_name)
+            # book_path = os.path.join(self.emited_path, '_LDs', self.ld_name + '.xlsx')
+            book_path = os.path.join(self.ld_path, self.ld_name)
             default_list = get_acronym_default_list(book_path,
                                                     previous_cover_cell)
         output = multenterbox(text, title, input_list, default_list)
@@ -442,9 +419,6 @@ class Emission:
     def get_revision(self, doc):
         filename = os.path.splitext(doc)[0]
         pattern = self.rev_reg_expression
-        #Busca o padrao regex no nome do arquivo, se encontrar, extrai a parte da revisao e converte para inteiro.
-        #Se nao encontrar, retorna 0
-        #Pega o numero de revisao contido no nome do arquivo
         if re.search(pattern, filename) is not None:
             rev = re.search(pattern, filename).group()
             rev = int(''.join(filter(str.isdigit, rev)))
@@ -513,9 +487,7 @@ class Emission:
 if __name__ == '__main__':
     # os.chdir(r'C:\Users\bruno\OneDrive\Documentos\LD\2227 Exemplo\5_Engenharia\_PARA EMISSAO')
     emis = Emission()
-    #Nao precisa de mudancas
     emis.check_filename_pattern()
-    #Nao precisa de mudancas
     dirs_to_create = emis.issued_directories()
     emis.confirm_files(dirs_to_create)
     emis.create_dirs(dirs_to_create)

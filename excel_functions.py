@@ -5,15 +5,13 @@ from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import FormulaRule
 
 
-def get_grd_number(emited_path, ld_name):
+def get_grd_number(emited_path, ld_path, ld_name):
     '''
     Opens the excel LD and returns the number of the GRD that are going to be
     issued
     '''
-    # Prefer the emitted LD folder, but fall back to the local 00_LDs template folder.
-    book_path = os.path.join(emited_path, '_LDs', ld_name)
-    if not os.path.isfile(book_path):
-        book_path = os.path.join(os.getcwd(), "00_LDs", ld_name)
+
+    book_path = os.path.join(ld_path, ld_name)
 
     wb = openpyxl.load_workbook(book_path, read_only=True)
     grd_number = 1
@@ -26,12 +24,10 @@ def get_grd_number(emited_path, ld_name):
     return grd_number
 
 
-def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
+def create_excel_grd(emited_path, ld_path ,ld_name, grd_number, grd_name,
                      ld_information, ld_rev, file_num_caract, grd_items):
-    #Pega o caminha da planilha com o ultimo LD
-    book_path = os.path.join(emited_path, '_LDs', ld_name)
-    if not os.path.isfile(book_path):
-        book_path = os.path.join(os.getcwd(),"00_LDs" ,ld_name)
+    # Gets the path of the spreadsheet with the last LD
+    book_path = os.path.join(ld_path, ld_name)
     book = openpyxl.load_workbook(book_path)
     template_sheet = book['GRD-XXX']
     cover_sheet = book['Capa']
@@ -109,9 +105,12 @@ def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
     cover_sheet.cell(row=rev_row + 3,
                      column=rev_column).value = ld_information["acronym3"]
 
-    ld_final_path = os.path.join(emited_path, "_LDs",  ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx')
-    if not os.path.isdir(os.path.dirname(ld_final_path)):    
-        ld_final_path = os.path.join(os.getcwd(),"00_LDs" , ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx')
+    # ld_final_path = os.path.join(emited_path, "_LDs",  ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx')
+
+    ld_final_path = os.path.join(
+        ld_path,       
+        ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx'
+    )
     book.save(filename=ld_final_path)
     book.close()
 

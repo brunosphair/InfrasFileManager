@@ -25,7 +25,7 @@ class Emission:
         self.directories = self.get_emited_directories()
         self.ld_rev = self.get_ld_rev()
         self.project_number = self.get_project_number()
-        self.grd_number = get_grd_number(self.emited_path, self.ld_path, self.ld_name)
+        self.grd_number = get_grd_number(self.ld_path, self.ld_name)
         self.grd_name = 'IFS-GRD-' + \
                         str(self.project_number) + \
                         "-" + str(self.grd_number).zfill(3)
@@ -40,6 +40,7 @@ class Emission:
         docs = []
         file_names = []
         for path, subdir, files in os.walk('.'):
+            subdir.clear()
             for file in files:
 
                 full_path = os.path.join(path, file)
@@ -107,7 +108,7 @@ class Emission:
         '''
         
         lds = os.listdir(self.ld_path)
-        self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsx'
+        self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsm'
         last_revision = -1
         for item in lds:
             ld_revision = self.get_ld_revision(item)
@@ -270,9 +271,9 @@ class Emission:
             if doc['emit'] and doc_name not in no_docs:
                 no_docs.append(doc_name)
                 grd_items.append([doc_name, doc['rev']])
-        create_excel_grd(self.emited_path, self.ld_path, self.ld_name, self.grd_number,
+        create_excel_grd(self.ld_path, self.ld_name, self.grd_number,
                          self.grd_name, self.ld_information, self.ld_rev,
-                         self.file_num_caract, grd_items)
+                         grd_items)
 
     def get_ld_information(self):
         date_defined = False

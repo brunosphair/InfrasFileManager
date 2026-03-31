@@ -392,11 +392,6 @@ class Emission:
         name_no_ext = os.path.splitext(filename)[0]
         folder_name = re.sub(r'(?i)_R\d+$', '', name_no_ext)
         return folder_name
-    # Antes:
-    #@staticmethod
-    #def get_folder_name(filename, num_caract):
-        #folder_name = filename[:num_caract]
-        #return folder_name
 
     def move_files(self):
         for directory in self.directories.keys():

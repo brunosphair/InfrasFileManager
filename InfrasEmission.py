@@ -119,14 +119,14 @@ class Emission:
         return last_revision
 
     def get_reg_expressions(self):
-        
+
         load_dotenv()
         doc_reg_expression = os.getenv("DOC_REG_EXPRESSION")
         rev_reg_expression = os.getenv("REV_REG_EXPRESSION")
-        
+
         if doc_reg_expression is None:
             doc_reg_expression = \
-                    r'^IFS-\d{4}-\d{3}-\w{1}-\w{2}-\d{5}.*(_R\d{1,2})?$'
+                    r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$'
         if rev_reg_expression is None:
             rev_reg_expression = r'(?i)_R\d+$'
 
@@ -251,8 +251,7 @@ class Emission:
             for doc in self.docs:
                 if not doc['file_name'] in choices:
                     doc['emit'] = False
-                    folder_name = self.get_folder_name(doc['file_name'],
-                                                       self.file_num_caract)
+                    folder_name = self.get_folder_name(doc['file_name'])
                     if folder_name in dirs_to_create:
                         del dirs_to_create[folder_name]
 
@@ -292,13 +291,14 @@ class Emission:
 
         if self.ld_rev == -1:
             text = "Como essa é a primeira emissão desse projeto, digite um "\
-                "nome para a LD no padrão IFS-NNNN-NNN-X-LD-NNNNN onde X são "\
-                "letras e N são números"
+                "nome para a LD no padrão IFS-NNNN-NNN-X-LD-NNNNN (disciplina "\
+                "com 1 letra) ou IFS-NNNN-NNN-XXX-LD-NNNNN (disciplina com 3 "\
+                "letras), onde X são letras e N são números"
             title = "Nomeie a LD"
             probably_name = self.get_probably_name()
             d_text = "IFS-"\
                      + str(self.project_number)\
-                     + "-" + probably_name + "-G-LD-00001"
+                     + "-" + probably_name + "-GER-LD-00001"
             defined_name = False
             while not defined_name:
                 ld_name = enterbox(text, title, d_text)
@@ -306,7 +306,7 @@ class Emission:
                     defined_name = True
                 else:
                     msgbox("O nome que você digitou não atende aos requisitos"
-                           " de IFS-NNNN-NNN-X-LD-NNNNN, digite novamente",
+                           " de IFS-NNNN-NNN-XXX-LD-NNNNN, digite novamente",
                            "Nome inválido!")
             ld_information["ld_name"] = ld_name
 
@@ -371,8 +371,7 @@ class Emission:
         dirs_to_create = {}
         for doc in self.docs:
             if doc['emit']:
-                folder_name = self.get_folder_name(doc['file_name'],
-                                                   self.file_num_caract)
+                folder_name = self.get_folder_name(doc['file_name'])
                 if folder_name not in self.directories:
                     dir_to_create = os.path.join(self.emited_path,
                                                  doc['subdir'], folder_name)
@@ -389,9 +388,15 @@ class Emission:
             Path(dir).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def get_folder_name(filename, num_caract):
-        folder_name = filename[:num_caract]
+    def get_folder_name(filename):
+        name_no_ext = os.path.splitext(filename)[0]
+        folder_name = re.sub(r'(?i)_R\d+$', '', name_no_ext)
         return folder_name
+    # Antes:
+    #@staticmethod
+    #def get_folder_name(filename, num_caract):
+        #folder_name = filename[:num_caract]
+        #return folder_name
 
     def move_files(self):
         for directory in self.directories.keys():
@@ -408,7 +413,8 @@ class Emission:
         msgbox(msg, title)
 
     def get_file_name(self, doc):
-        filename = doc[:self.file_num_caract]
+        name_no_ext = os.path.splitext(doc)[0]
+        filename = re.sub(self.rev_reg_expression, '', name_no_ext)
         return filename
 
     def get_probably_name(self):
@@ -437,7 +443,7 @@ class Emission:
 
     @staticmethod
     def verify_ld_pattern_no_rev(doc_name):
-        pattern = r'^IFS-\d{4}-\d{3}-\w{1}-LD-\d{5}$'
+        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}(_R\d+)?$'
         if re.match(pattern, doc_name):
             return True
         else:
@@ -457,7 +463,7 @@ class Emission:
     @staticmethod
     def get_ld_revision(doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
-        pattern = r'^IFS-\d{4}-\d{3}-\w{1}-LD-\d{5}.*(_R\d{1,2})?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$'
         if not re.match(pattern, doc_name_no_extension):
             return -1
         else:

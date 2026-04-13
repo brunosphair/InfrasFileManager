@@ -40,7 +40,7 @@ class Emission:
         docs = []
         file_names = []
         for path, subdir, files in os.walk('.'):
-            subdir.clear()
+            # subdir.clear()
             for file in files:
 
                 full_path = os.path.join(path, file)
@@ -108,7 +108,7 @@ class Emission:
         '''
         
         lds = os.listdir(self.ld_path)
-        self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsm'
+        self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsx'
         last_revision = -1
         for item in lds:
             ld_revision = self.get_ld_revision(item)
@@ -251,7 +251,7 @@ class Emission:
             for doc in self.docs:
                 if not doc['file_name'] in choices:
                     doc['emit'] = False
-                    folder_name = self.get_folder_name(doc['file_name'])
+                    folder_name = self.get_folder_name(doc['file_name'], self.file_num_caract)
                     if folder_name in dirs_to_create:
                         del dirs_to_create[folder_name]
 
@@ -371,7 +371,7 @@ class Emission:
         dirs_to_create = {}
         for doc in self.docs:
             if doc['emit']:
-                folder_name = self.get_folder_name(doc['file_name'])
+                folder_name = self.get_folder_name(doc['file_name'], self.file_num_caract)
                 if folder_name not in self.directories:
                     dir_to_create = os.path.join(self.emited_path,
                                                  doc['subdir'], folder_name)
@@ -388,15 +388,18 @@ class Emission:
             Path(dir).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
-    def get_folder_name(filename):
-        name_no_ext = os.path.splitext(filename)[0]
-        folder_name = re.sub(r'(?i)_R\d+$', '', name_no_ext)
-        return folder_name
-    # Antes:
-    #@staticmethod
-    #def get_folder_name(filename, num_caract):
-        #folder_name = filename[:num_caract]
-        #return folder_name
+    def detect_num_caract(filename):
+        if len(filename) > 14 and filename[14] == '-':
+            return 23
+        if len(filename) > 16 and filename[16] == '-':
+            return 25
+        return None
+
+    @staticmethod
+    def get_folder_name(filename, num_caract):
+        detected = Emission.detect_num_caract(filename)
+        return filename[:detected] if detected is not None else filename[:num_caract]
+
 
     def move_files(self):
         for directory in self.directories.keys():
@@ -407,15 +410,15 @@ class Emission:
                                                           self.directories[directory],
                                                           directory),
                                              doc['file_name']))
+                    dest.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(src, dest)
         msg = "A emissão foi realizada com sucesso."
         title = "Documentos emitidos"
         msgbox(msg, title)
 
     def get_file_name(self, doc):
-        name_no_ext = os.path.splitext(doc)[0]
-        filename = re.sub(self.rev_reg_expression, '', name_no_ext)
-        return filename
+        detected = self.detect_num_caract(doc)
+        return doc[:detected] if detected is not None else doc[:self.file_num_caract]
 
     def get_probably_name(self):
         doc_name = self.docs[0]

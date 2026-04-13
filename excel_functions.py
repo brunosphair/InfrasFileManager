@@ -1,6 +1,9 @@
-import xlwings as xw
 import openpyxl
 import os
+
+from openpyxl.styles import PatternFill
+from openpyxl.formatting.rule import FormulaRule
+from openpyxl.worksheet.datavalidation import DataValidation
 
 
 def get_grd_number(ld_path, ld_name):
@@ -10,7 +13,7 @@ def get_grd_number(ld_path, ld_name):
     '''
     book_path = os.path.join(ld_path, ld_name)
 
-    wb = openpyxl.load_workbook(book_path, read_only=True, keep_vba=True)
+    wb = openpyxl.load_workbook(book_path, read_only=True)
     grd_number = 1
     sheet_name = 'GRD-' + str(grd_number).zfill(3)
     while sheet_name in wb.sheetnames:
@@ -20,97 +23,128 @@ def get_grd_number(ld_path, ld_name):
 
     return grd_number
 
+def restore_gerador_validations(book):
+    '''
+    Restores the data validations in the "Gerador" sheet of the excel LD template.
+    '''
+    try:
+        name_generator = book['Gerador']
+        
+        validations = [
+            ("C3", "'Estrutura (2027)'!$T$12:$T$26"),
+            ("C4", "'Estrutura (2027)'!$T$12:$T$26"),
+            ("C5", "'Estrutura (2027)'!$C$12:$C$21"),
+            ("C6", "'Estrutura (2027)'!$G$12:$G$20"),
+            ("C7", "'Estrutura (2027)'!$K$12:$K$21"),
+            ("C8", "'Estrutura (2027)'!$O$12:$O$44"),
+        ]
+        
+        for cel, form in validations:
+            dv = DataValidation(
+                type="list",
+                formula1=form,
+                allow_blank=True,
+                showDropDown=False,
+            )
+            name_generator.add_data_validation(dv)
+            dv.add(cel)
+    except KeyError:
+        pass
+
 
 def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
                      ld_information, ld_rev, grd_items):
+    book_path = os.path.join(ld_path, ld_name)
+    book = openpyxl.load_workbook(book_path)
+    template_sheet = book['GRD-XXX']
+    cover_sheet = book['Capa']
+    restore_gerador_validations(book)
+    sheet = book.copy_worksheet(template_sheet)
+    sheet.title = 'GRD-' + str(grd_number).zfill(3)
+    i = 1
+    for item in grd_items:
+        sheet.cell(row=25 + i, column=1).value = int(i)
+        sheet.cell(row=25 + i, column=2).value = item[0]
+        sheet.cell(row=25 + i, column=16).value = int(item[1])
+        i += 1
+    sheet.cell(row=10, column=12).value = grd_name
 
-    book_path = os.path.abspath(os.path.join(ld_path, ld_name))
+    sheet.cell(row=7,
+               column=12).value = ld_information["emission_date"]
 
-    app = xw.App(visible=False)
-    app.display_alerts = False
-    app.screen_updating = False
+    yellowFill = PatternFill(start_color='FFFF00',
+                             end_color='FFFF00',
+                             fill_type='solid')
+    sheet.conditional_formatting.add('$E$26:$O$192',
+                                     FormulaRule(formula=[
+                                                 'AND($B26<>"",E26="")'
+                                                 ],
+                                                 stopIfTrue=False,
+                                                 fill=yellowFill
+                                                 )
+                                     )
+    sheet.conditional_formatting.add('$Q$26:$R$192',
+                                     FormulaRule(formula=[
+                                                 'AND($B26<>"",Q26="")'
+                                                 ],
+                                                 stopIfTrue=False,
+                                                 fill=yellowFill
+                                                 )
+                                     )
+    
 
-    wb = None
-    try:
-        wb = app.books.open(book_path)
 
-        template = wb.sheets['GRD-XXX']
-        new_sheet_name = 'GRD-' + str(grd_number).zfill(3)
-
-        # Copia a aba template — preserva botões e macros
-        # Detecta o nome da nova aba pelo que não existia antes
-        original_names = {s.name for s in wb.sheets}
-        template.copy(after=wb.sheets[-1])
-        sheet = next(s for s in wb.sheets if s.name not in original_names)
-        sheet.name = new_sheet_name
-
-        cover_sheet = wb.sheets['Capa']
-
-        # Preenche os itens
-        for i, item in enumerate(grd_items, 1):
-            sheet.cells(25 + i, 1).value = int(i)
-            sheet.cells(25 + i, 2).value = item[0]
-            sheet.cells(25 + i, 16).value = int(item[1])
-
-        sheet.cells(10, 12).value = grd_name
-        sheet.cells(7, 12).value = ld_information["emission_date"]
-
-        # Revisão e capa
-        if ld_rev == -1:
-            revision = 0
-            ld_name_base = ld_information["ld_name"]
-            cover_sheet.cells(2, 4).value = ld_name_base
-            ld_name = ld_name_base + "_R0"
-            project_title = ld_information["project_title"]
-            cover_sheet.cells(5, 1).value = ld_information["ld_title"]
+    if ld_rev == -1:
+        revision = 0
+        ld_name = ld_information["ld_name"]
+        cover_sheet.cell(row=2, column=4).value = ld_name
+        ld_name = ld_name + "_R0"
+        project_title = ld_information["project_title"]
+        cover_sheet.cell(row=5, column=1).value = ld_information["ld_title"]
+    else:
+        revision = ld_rev + 1
+        if len(ld_name) > 14 and ld_name[14] == '-':
+            num = 23
+        elif len(ld_name) > 16 and ld_name[16] == '-':
+            num = 25
         else:
-            revision = ld_rev + 1
-            ld_name = ld_name[:23] + '_R' + str(revision)
-            last_grd = wb.sheets['GRD-' + str(grd_number - 1).zfill(3)]
-            project_title = last_grd.cells(1, 6).value
+            num = 23
+        ld_name = ld_name[:num] + '_R' + str(revision)
+        last_grd = book['GRD-' + str(grd_number - 1).zfill(3)]
+        project_title = last_grd.cell(row=1, column=6).value
+    sheet.cell(row=1, column=6).value = project_title
+    cover_sheet.cell(row=6, column=12).value = revision
+    if revision > 13:
+        reorder_description_cells(cover_sheet)
+        input_row = 29
+    else:
+        input_row = 16 + revision
+    cover_sheet.cell(input_row, column=1).value = revision
+    cover_sheet.cell(input_row, column=2).value = "C"
+    cover_sheet.cell(input_row, column=3).value = grd_name
+    rev_cell = get_cover_cell(revision)
+    rev_row = rev_cell[0]
+    rev_column = rev_cell[1]
 
-        sheet.cells(1, 6).value = project_title
-        cover_sheet.cells(6, 12).value = revision
+    if revision > 9:
+        reorder_rev_cells(cover_sheet, revision)
 
-        if revision > 13:
-            reorder_description_cells(cover_sheet)
-            input_row = 29
-        else:
-            input_row = 16 + revision
+    cover_sheet.cell(row=rev_row,
+                     column=rev_column).value = ld_information[
+        "emission_date"]
+    cover_sheet.cell(row=rev_row + 1,
+                     column=rev_column).value = ld_information["acronym1"]
+    cover_sheet.cell(row=rev_row + 2,
+                     column=rev_column).value = ld_information["acronym2"]
+    cover_sheet.cell(row=rev_row + 3,
+                     column=rev_column).value = ld_information["acronym3"]
 
-        cover_sheet.cells(input_row, 1).value = revision
-        cover_sheet.cells(input_row, 2).value = "C"
-        cover_sheet.cells(input_row, 3).value = grd_name
-
-        rev_cell = get_cover_cell(revision)
-        rev_row = rev_cell[0]
-        rev_column = rev_cell[1]
-
-        if revision > 9:
-            reorder_rev_cells(cover_sheet, revision)
-
-        cover_sheet.cells(rev_row, rev_column).value = ld_information["emission_date"]
-        cover_sheet.cells(rev_row + 1, rev_column).value = ld_information["acronym1"]
-        cover_sheet.cells(rev_row + 2, rev_column).value = ld_information["acronym2"]
-        cover_sheet.cells(rev_row + 3, rev_column).value = ld_information["acronym3"]
-
-        ld_final_path = os.path.abspath(os.path.join(
-            ld_path,
-            ld_name if ld_name.endswith('.xlsm') else ld_name + '.xlsm'
-        ))
-
-        wb.api.SaveAs(ld_final_path, FileFormat=52)
-
-    finally:
-        if wb is not None:
-            try:
-                wb.close()
-            except:
-                pass
-        try:
-            app.quit()
-        except:
-            pass
+    ld_final_path = os.path.join(
+        ld_path,
+        ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx'
+    )
+    book.save(filename=ld_final_path)
+    book.close()
 
 
 def get_cover_cell(rev):
@@ -134,7 +168,7 @@ def get_cover_cell(rev):
 
 
 def get_acronym_default_list(book_path, previous_cover_cell):
-    wb = openpyxl.load_workbook(book_path, read_only=True, keep_vba=True)
+    wb = openpyxl.load_workbook(book_path, read_only=True)
     cover_sheet = wb['Capa']
     d1 = cover_sheet.cell(row=previous_cover_cell[0] + 1,
                           column=previous_cover_cell[1]).value
@@ -142,11 +176,11 @@ def get_acronym_default_list(book_path, previous_cover_cell):
                           column=previous_cover_cell[1]).value
     d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3,
                           column=previous_cover_cell[1]).value
-    wb.close()
     return [d1, d2, d3]
 
 
 def reorder_rev_cells(cover_sheet, revision):
+
     # Column G to E - LINHA 1
     copy_values(cover_sheet, 31, 7, 31, 5)
     copy_values(cover_sheet, 32, 7, 32, 5)
@@ -196,7 +230,7 @@ def reorder_rev_cells(cover_sheet, revision):
     copy_values(cover_sheet, 39, 11, 39, 8)
     copy_values(cover_sheet, 40, 11, 40, 8)
 
-    cover_sheet.cells(36, 11).value = "REV. " + str(revision)
+    cover_sheet.cell(row=36, column=11).value = "REV. " + str(revision)
 
 
 def reorder_description_cells(cover_sheet):
@@ -207,4 +241,5 @@ def reorder_description_cells(cover_sheet):
 
 
 def copy_values(cover_sheet, from_row, from_column, to_row, to_column):
-    cover_sheet.cells(to_row, to_column).value = cover_sheet.cells(from_row, from_column).value
+    cover_sheet.cell(row=to_row,
+                     column=to_column).value = cover_sheet.cell(row=from_row, column=from_column).value

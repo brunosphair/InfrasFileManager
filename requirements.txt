@@ -2,4 +2,3 @@ easygui==0.98.3
 openpyxl==3.1.2
 pyperclip==1.8.2
 python-dotenv==1.0.0
-xlwings==0.34.0

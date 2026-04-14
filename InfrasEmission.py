@@ -40,6 +40,7 @@ class Emission:
         docs = []
         file_names = []
         for path, subdir, files in os.walk('.'):
+            subdir[:] = [d for d in subdir if d != '00_LDs']
             # subdir.clear()
             for file in files:
 

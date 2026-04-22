@@ -127,7 +127,7 @@ class Emission:
 
         if doc_reg_expression is None:
             doc_reg_expression = \
-                    r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$'
+                    r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
         if rev_reg_expression is None:
             rev_reg_expression = r'(?i)_R\d+$'
 
@@ -293,8 +293,8 @@ class Emission:
         if self.ld_rev == -1:
             text = "Como essa é a primeira emissão desse projeto, digite um "\
                 "nome para a LD no padrão IFS-NNNN-NNN-X-LD-NNNNN (disciplina "\
-                "com 1 letra) ou IFS-NNNN-NNN-XXX-LD-NNNNN (disciplina com 3 "\
-                "letras), onde X são letras e N são números"
+                "com 1 letra e Número do doc com 5 números) ou IFS-NNNN-NNN-XXX-LD-NNNN (disciplina com 3 "\
+                "letras e Número do doc com 4 números), onde X são letras e N são números"
             title = "Nomeie a LD"
             probably_name = self.get_probably_name()
             d_text = "IFS-"\
@@ -393,7 +393,7 @@ class Emission:
         if len(filename) > 14 and filename[14] == '-':
             return 23
         if len(filename) > 16 and filename[16] == '-':
-            return 25
+            return 24
         return None
 
     @staticmethod
@@ -447,7 +447,7 @@ class Emission:
 
     @staticmethod
     def verify_ld_pattern_no_rev(doc_name):
-        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}(_R\d+)?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}(_R\d+)?$'
         if re.match(pattern, doc_name):
             return True
         else:
@@ -467,7 +467,7 @@ class Emission:
     @staticmethod
     def get_ld_revision(doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
-        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
         if not re.match(pattern, doc_name_no_extension):
             return -1
         else:

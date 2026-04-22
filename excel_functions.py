@@ -28,15 +28,14 @@ def restore_gerador_validations(book):
     Restores the data validations in the "Gerador" sheet of the excel LD template.
     '''
     try:
-        name_generator = book['Gerador']
+        name_generator = book['Numeração']
         
         validations = [
-            ("C3", "'Estrutura (2027)'!$T$12:$T$26"),
-            ("C4", "'Estrutura (2027)'!$T$12:$T$26"),
-            ("C5", "'Estrutura (2027)'!$C$12:$C$21"),
-            ("C6", "'Estrutura (2027)'!$G$12:$G$20"),
-            ("C7", "'Estrutura (2027)'!$K$12:$K$21"),
-            ("C8", "'Estrutura (2027)'!$O$12:$O$44"),
+            ("C4", "'Estrutura (2027)'!$AL$8:$AL$22"),
+            ("C5", "'Estrutura (2027)'!$Z$8:$Z$17"),
+            ("C6", "'Estrutura (2027)'!$AC$8:$AC$17"),
+            ("C7", "'Estrutura (2027)'!$AF$8:$AF$17"),
+            ("C8", "'Estrutura (2027)'!$AI$8:$AI$40"),
         ]
         
         for cel, form in validations:
@@ -106,7 +105,7 @@ def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
         if len(ld_name) > 14 and ld_name[14] == '-':
             num = 23
         elif len(ld_name) > 16 and ld_name[16] == '-':
-            num = 25
+            num = 24
         else:
             num = 23
         ld_name = ld_name[:num] + '_R' + str(revision)

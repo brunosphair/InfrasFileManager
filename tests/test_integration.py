@@ -16,7 +16,7 @@ FIXTURE_PATH = os.path.join(os.path.dirname(__file__), 'fixtures', 'IFS-XXXX-XXX
 
 def make_emission(**kwargs):
     obj = object.__new__(Emission)
-    obj.doc_reg_expression = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$'
+    obj.doc_reg_expression = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
     obj.rev_reg_expression = r'(?i)_R\d+$'
     obj.file_num_caract = 23
     for k, v in kwargs.items():
@@ -166,7 +166,40 @@ class TestCreateZip(unittest.TestCase):
 )
 class TestCreateExcelGrd(unittest.TestCase):
     def test_cria_arquivo_xlsx_na_pasta_ld(self):
-        ld_output_name = 'IFS-2227-001-GER-LD-00001'
+        ld_output_name = 'IFS-2227-001-GER-LD-0001'
+        ld_information = {
+            'emission_date': '01/04/26',
+            'ld_name': ld_output_name,
+            'project_title': 'PROJETO TESTE',
+            'ld_title': 'PROJETO TESTE\nLISTA DE DOCUMENTOS',
+            'acronym1': 'ABC',
+            'acronym2': 'DEF',
+            'acronym3': 'GHI',
+        }
+        grd_items = [('IFS-2227-001-A-AR-00001', 0)]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture_name = os.path.basename(FIXTURE_PATH)
+            shutil.copy(FIXTURE_PATH, os.path.join(tmp, fixture_name))
+
+            create_excel_grd(
+                ld_path=tmp,
+                ld_name=fixture_name,
+                grd_number=1,
+                grd_name='IFS-GRD-2227-001',
+                ld_information=ld_information,
+                ld_rev=-1,
+                grd_items=grd_items,
+            )
+
+            expected_file = os.path.join(tmp, ld_output_name + '_R0.xlsx')
+            self.assertTrue(
+                os.path.exists(expected_file),
+                f"Arquivo esperado não encontrado: {expected_file}",
+            )
+
+    def test_cria_arquivo_xlsx_disciplina_1_letra(self):
+        ld_output_name = 'IFS-2227-001-A-LD-00001'
         ld_information = {
             'emission_date': '01/04/26',
             'ld_name': ld_output_name,
@@ -199,7 +232,7 @@ class TestCreateExcelGrd(unittest.TestCase):
             )
 
     def test_cria_arquivo_xlsx_segunda_emissao(self):
-        ld_output_name = 'IFS-2227-001-GER-LD-00001'
+        ld_output_name = 'IFS-2227-001-GER-LD-0001'
         grd_items = [('IFS-2227-001-A-AR-00001', 0)]
 
         with tempfile.TemporaryDirectory() as tmp:

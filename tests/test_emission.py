@@ -13,7 +13,7 @@ def make_emission(**kwargs):
     """Cria uma instância de Emission sem chamar __init__, evitando efeitos colaterais
     de filesystem, GUI e Excel."""
     obj = object.__new__(Emission)
-    obj.doc_reg_expression = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$'
+    obj.doc_reg_expression = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
     obj.rev_reg_expression = r'(?i)_R\d+$'
     obj.file_num_caract = 23
     for k, v in kwargs.items():
@@ -36,7 +36,7 @@ class TestVerifyPattern(unittest.TestCase):
         self.assertTrue(self.emis.verify_pattern('IFS-2227-001-A-AR-00001_R1.pdf'))
 
     def test_valido_disciplina_3_letras(self):
-        self.assertTrue(self.emis.verify_pattern('IFS-2227-001-GER-LD-00001.pdf'))
+        self.assertTrue(self.emis.verify_pattern('IFS-2227-001-GER-LD-0001.pdf'))
 
     def test_invalido_disciplina_2_letras(self):
         # (?:\w{3}|\w) aceita apenas 1 ou 3 caracteres — 2 deve ser rejeitado
@@ -75,10 +75,10 @@ class TestVerifyDatePattern(unittest.TestCase):
 
 class TestVerifyLdPatternNoRev(unittest.TestCase):
     def test_valido_sem_revisao(self):
-        self.assertTrue(Emission.verify_ld_pattern_no_rev('IFS-2227-001-GER-LD-00001'))
+        self.assertTrue(Emission.verify_ld_pattern_no_rev('IFS-2227-001-GER-LD-0001'))
 
     def test_valido_com_r0(self):
-        self.assertTrue(Emission.verify_ld_pattern_no_rev('IFS-2227-001-GER-LD-00001_R0'))
+        self.assertTrue(Emission.verify_ld_pattern_no_rev('IFS-2227-001-GER-LD-0001_R0'))
 
     def test_invalido_disciplina_2_letras(self):
         self.assertFalse(Emission.verify_ld_pattern_no_rev('IFS-2227-001-GE-LD-00001'))
@@ -104,16 +104,16 @@ class TestGetFolderName(unittest.TestCase):
             'IFS-2227-001-A-AR-00001'
         )
 
-    def test_corta_nos_25_primeiros_caracteres_disciplina_3_letras(self):
+    def test_corta_nos_24_primeiros_caracteres_disciplina_3_letras(self):
         self.assertEqual(
-            Emission.get_folder_name('IFS-2227-001-GER-LD-00001_R0.xlsx', 23),
-            'IFS-2227-001-GER-LD-00001'
+            Emission.get_folder_name('IFS-2227-001-GER-LD-0001_R0.xlsx', 23),
+            'IFS-2227-001-GER-LD-0001'
         )
 
     def test_sem_revisao_disciplina_3_letras(self):
         self.assertEqual(
-            Emission.get_folder_name('IFS-2227-001-GER-LD-00001.xlsx', 23),
-            'IFS-2227-001-GER-LD-00001'
+            Emission.get_folder_name('IFS-2227-001-GER-LD-0001.xlsx', 23),
+            'IFS-2227-001-GER-LD-0001'
         )
 
 
@@ -158,10 +158,10 @@ class TestGetFileName(unittest.TestCase):
             'IFS-2227-001-A-AR-00001'
         )
 
-    def test_disciplina_3_letras_retorna_25_chars(self):
+    def test_disciplina_3_letras_retorna_24_chars(self):
         self.assertEqual(
-            self.emis.get_file_name('IFS-2227-001-GER-LD-00001_R0.xlsx'),
-            'IFS-2227-001-GER-LD-00001'
+            self.emis.get_file_name('IFS-2227-001-GER-LD-0001_R0.xlsx'),
+            'IFS-2227-001-GER-LD-0001'
         )
 
 
@@ -172,7 +172,7 @@ class TestGetFileName(unittest.TestCase):
 class TestGetLdRevision(unittest.TestCase):
     def test_ld_com_revisao_3(self):
         self.assertEqual(
-            Emission.get_ld_revision('IFS-2227-001-GER-LD-00001_R3.xlsx'), 3
+            Emission.get_ld_revision('IFS-2227-001-GER-LD-0001_R3.xlsx'), 3
         )
 
     def test_nome_invalido_retorna_menos_1(self):
@@ -206,7 +206,7 @@ class TestGetRegExpressions(unittest.TestCase):
     @patch('InfrasEmission.os.getenv', return_value=None)
     def test_retorna_defaults_sem_env(self, mock_getenv, mock_load_dotenv):
         doc_re, rev_re = self.emis.get_reg_expressions()
-        self.assertEqual(doc_re, r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{5}.*(_R\d{1,2})?$')
+        self.assertEqual(doc_re, r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$')
         self.assertEqual(rev_re, r'(?i)_R\d+$')
 
 

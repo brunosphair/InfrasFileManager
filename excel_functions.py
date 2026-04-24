@@ -28,14 +28,14 @@ def restore_gerador_validations(book):
     Restores the data validations in the "Gerador" sheet of the excel LD template.
     '''
     try:
-        name_generator = book['Numeração']
+        name_generator = book['GeradorNumeração']
         
         validations = [
-            ("C4", "'Estrutura (2027)'!$AL$8:$AL$22"),
-            ("C5", "'Estrutura (2027)'!$Z$8:$Z$17"),
-            ("C6", "'Estrutura (2027)'!$AC$8:$AC$17"),
-            ("C7", "'Estrutura (2027)'!$AF$8:$AF$17"),
-            ("C8", "'Estrutura (2027)'!$AI$8:$AI$40"),
+            ("C4", "'Estrutura'!$AL$8:$AL$22"),
+            ("C5", "'Estrutura'!$Z$8:$Z$17"),
+            ("C6", "'Estrutura'!$AC$8:$AC$17"),
+            ("C7", "'Estrutura'!$AF$8:$AF$17"),
+            ("C8", "'Estrutura'!$AI$8:$AI$40"),
         ]
         
         for cel, form in validations:

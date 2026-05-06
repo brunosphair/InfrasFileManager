@@ -15,19 +15,22 @@ from excel_functions import get_grd_number, create_excel_grd, \
 
 class Emission:
     def __init__(self):
+        load_dotenv()
         self.doc_reg_expression, self.rev_reg_expression = \
                                                     self.get_reg_expressions()
         self.file_num_caract = self.get_file_num_caract()
         self.emited_path = self.get_emited_path()
+        self.ld_path = self.get_ld_path()
         self.docs = self.get_files()
         self.directories = self.get_emited_directories()
         self.ld_rev = self.get_ld_rev()
         self.project_number = self.get_project_number()
-        self.grd_number = get_grd_number(self.emited_path, self.ld_name)
+        self.grd_number = get_grd_number(self.ld_path, self.ld_name)
         self.grd_name = 'IFS-GRD-' + \
                         str(self.project_number) + \
                         "-" + str(self.grd_number).zfill(3)
         self.ld_information = {}
+
 
     def get_files(self):
         '''
@@ -37,6 +40,8 @@ class Emission:
         docs = []
         file_names = []
         for path, subdir, files in os.walk('.'):
+            subdir[:] = [d for d in subdir if d != '00_LDs']
+            # subdir.clear()
             for file in files:
 
                 full_path = os.path.join(path, file)
@@ -71,15 +76,28 @@ class Emission:
         if not os.path.isdir(issued_path):
             raise FileNotFoundError("A pasta 3_Emitidos não foi encontrada")
         return issued_path
+    
+    def get_ld_path(self):
+        '''
+        Returns the path to the folder containing the LDs.
+        '''
+        ld_path = os.path.join(self.emited_path, '_LDs')
+        if not os.path.isdir(ld_path):
+            ld_path = os.path.join(os.getcwd(), "00_LDs")
+        if not os.path.isdir(ld_path):
+            raise FileNotFoundError("A pasta de LDs não foi encontrada")
+        return ld_path
 
     def get_emited_directories(self):
         '''
         Return all the directories in the 3_Emitidos path. Therefore, returns
         the name of the files which was alredy emited.
         '''
+
         directories = {}
         for path, subdirs, files in os.walk(self.emited_path):
             for subdir in subdirs:
+                                      
                 directories[subdir] = os.path.relpath(path, self.emited_path)
 
         return directories
@@ -89,10 +107,8 @@ class Emission:
         Returns the revision of the last LD emited. If this is the first LD,
         then the function returns -1.
         '''
-        lds_directory = os.path.join(self.emited_path, '_LDs')
-        if not os.path.isdir(lds_directory):
-            raise FileNotFoundError("A pasta _LDs não foi encontrada")
-        lds = os.listdir(lds_directory)
+        
+        lds = os.listdir(self.ld_path)
         self.ld_name = 'IFS-XXXX-XXX-X-LD-XXXX.xlsx'
         last_revision = -1
         for item in lds:
@@ -104,14 +120,14 @@ class Emission:
         return last_revision
 
     def get_reg_expressions(self):
-        
+
         load_dotenv()
         doc_reg_expression = os.getenv("DOC_REG_EXPRESSION")
         rev_reg_expression = os.getenv("REV_REG_EXPRESSION")
-        
+
         if doc_reg_expression is None:
             doc_reg_expression = \
-                    r'^IFS-\d{4}-\d{3}-\w{1}-\w{2}-\d{5}.*(_R\d{1,2})?$'
+                    r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
         if rev_reg_expression is None:
             rev_reg_expression = r'(?i)_R\d+$'
 
@@ -236,8 +252,7 @@ class Emission:
             for doc in self.docs:
                 if not doc['file_name'] in choices:
                     doc['emit'] = False
-                    folder_name = self.get_folder_name(doc['file_name'],
-                                                       self.file_num_caract)
+                    folder_name = self.get_folder_name(doc['file_name'], self.file_num_caract)
                     if folder_name in dirs_to_create:
                         del dirs_to_create[folder_name]
 
@@ -256,9 +271,9 @@ class Emission:
             if doc['emit'] and doc_name not in no_docs:
                 no_docs.append(doc_name)
                 grd_items.append([doc_name, doc['rev']])
-        create_excel_grd(self.emited_path, self.ld_name, self.grd_number,
+        create_excel_grd(self.ld_path, self.ld_name, self.grd_number,
                          self.grd_name, self.ld_information, self.ld_rev,
-                         self.file_num_caract, grd_items)
+                         grd_items)
 
     def get_ld_information(self):
         date_defined = False
@@ -277,13 +292,14 @@ class Emission:
 
         if self.ld_rev == -1:
             text = "Como essa é a primeira emissão desse projeto, digite um "\
-                "nome para a LD no padrão IFS-NNNN-NNN-X-LD-NNNNN onde X são "\
-                "letras e N são números"
+                "nome para a LD no padrão IFS-NNNN-NNN-X-LD-NNNNN (disciplina "\
+                "com 1 letra e Número do doc com 5 números) ou IFS-NNNN-NNN-XXX-LD-NNNN (disciplina com 3 "\
+                "letras e Número do doc com 4 números), onde X são letras e N são números"
             title = "Nomeie a LD"
             probably_name = self.get_probably_name()
             d_text = "IFS-"\
                      + str(self.project_number)\
-                     + "-" + probably_name + "-G-LD-00001"
+                     + "-" + probably_name + "-GER-LD-00001"
             defined_name = False
             while not defined_name:
                 ld_name = enterbox(text, title, d_text)
@@ -291,7 +307,7 @@ class Emission:
                     defined_name = True
                 else:
                     msgbox("O nome que você digitou não atende aos requisitos"
-                           " de IFS-NNNN-NNN-X-LD-NNNNN, digite novamente",
+                           " de IFS-NNNN-NNN-XXX-LD-NNNNN, digite novamente",
                            "Nome inválido!")
             ld_information["ld_name"] = ld_name
 
@@ -316,7 +332,8 @@ class Emission:
         else:
             revision = self.ld_rev + 1
             previous_cover_cell = get_cover_cell(revision - 1)
-            book_path = os.path.join(self.emited_path, '_LDs', self.ld_name)
+            # book_path = os.path.join(self.emited_path, '_LDs', self.ld_name + '.xlsx')
+            book_path = os.path.join(self.ld_path, self.ld_name)
             default_list = get_acronym_default_list(book_path,
                                                     previous_cover_cell)
         output = multenterbox(text, title, input_list, default_list)
@@ -355,8 +372,7 @@ class Emission:
         dirs_to_create = {}
         for doc in self.docs:
             if doc['emit']:
-                folder_name = self.get_folder_name(doc['file_name'],
-                                                   self.file_num_caract)
+                folder_name = self.get_folder_name(doc['file_name'], self.file_num_caract)
                 if folder_name not in self.directories:
                     dir_to_create = os.path.join(self.emited_path,
                                                  doc['subdir'], folder_name)
@@ -373,9 +389,18 @@ class Emission:
             Path(dir).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
+    def detect_num_caract(filename):
+        if len(filename) > 14 and filename[14] == '-':
+            return 23
+        if len(filename) > 16 and filename[16] == '-':
+            return 24
+        return None
+
+    @staticmethod
     def get_folder_name(filename, num_caract):
-        folder_name = filename[:num_caract]
-        return folder_name
+        detected = Emission.detect_num_caract(filename)
+        return filename[:detected] if detected is not None else filename[:num_caract]
+
 
     def move_files(self):
         for directory in self.directories.keys():
@@ -386,14 +411,15 @@ class Emission:
                                                           self.directories[directory],
                                                           directory),
                                              doc['file_name']))
+                    dest.parent.mkdir(parents=True, exist_ok=True)
                     os.replace(src, dest)
         msg = "A emissão foi realizada com sucesso."
         title = "Documentos emitidos"
         msgbox(msg, title)
 
     def get_file_name(self, doc):
-        filename = doc[:self.file_num_caract]
-        return filename
+        detected = self.detect_num_caract(doc)
+        return doc[:detected] if detected is not None else doc[:self.file_num_caract]
 
     def get_probably_name(self):
         doc_name = self.docs[0]
@@ -421,7 +447,7 @@ class Emission:
 
     @staticmethod
     def verify_ld_pattern_no_rev(doc_name):
-        pattern = r'^IFS-\d{4}-\d{3}-\w{1}-LD-\d{5}$'
+        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}(_R\d+)?$'
         if re.match(pattern, doc_name):
             return True
         else:
@@ -441,7 +467,7 @@ class Emission:
     @staticmethod
     def get_ld_revision(doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
-        pattern = r'^IFS-\d{4}-\d{3}-\w{1}-LD-\d{5}.*(_R\d{1,2})?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
         if not re.match(pattern, doc_name_no_extension):
             return -1
         else:

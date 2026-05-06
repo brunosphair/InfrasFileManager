@@ -3,14 +3,16 @@ import os
 
 from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import FormulaRule
+from openpyxl.worksheet.datavalidation import DataValidation
 
 
-def get_grd_number(emited_path, ld_name):
+def get_grd_number(ld_path, ld_name):
     '''
     Opens the excel LD and returns the number of the GRD that are going to be
     issued
     '''
-    book_path = os.path.join(emited_path, '_LDs', ld_name)
+    book_path = os.path.join(ld_path, ld_name)
+
     wb = openpyxl.load_workbook(book_path, read_only=True)
     grd_number = 1
     sheet_name = 'GRD-' + str(grd_number).zfill(3)
@@ -21,13 +23,41 @@ def get_grd_number(emited_path, ld_name):
 
     return grd_number
 
+def restore_gerador_validations(book):
+    '''
+    Restores the data validations in the "Gerador" sheet of the excel LD template.
+    '''
+    try:
+        name_generator = book['GeradorNumeração']
+        
+        validations = [
+            ("C4", "'Estrutura'!$AL$8:$AL$22"),
+            ("C5", "'Estrutura'!$Z$8:$Z$17"),
+            ("C6", "'Estrutura'!$AC$8:$AC$17"),
+            ("C7", "'Estrutura'!$AF$8:$AF$17"),
+            ("C8", "'Estrutura'!$AI$8:$AI$40"),
+        ]
+        
+        for cel, form in validations:
+            dv = DataValidation(
+                type="list",
+                formula1=form,
+                allow_blank=True,
+                showDropDown=False,
+            )
+            name_generator.add_data_validation(dv)
+            dv.add(cel)
+    except KeyError:
+        pass
 
-def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
-                     ld_information, ld_rev, file_num_caract, grd_items):
-    book_path = os.path.join(emited_path, '_LDs', ld_name)
+
+def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
+                     ld_information, ld_rev, grd_items):
+    book_path = os.path.join(ld_path, ld_name)
     book = openpyxl.load_workbook(book_path)
     template_sheet = book['GRD-XXX']
     cover_sheet = book['Capa']
+    restore_gerador_validations(book)
     sheet = book.copy_worksheet(template_sheet)
     sheet.title = 'GRD-' + str(grd_number).zfill(3)
     i = 1
@@ -60,6 +90,8 @@ def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
                                                  fill=yellowFill
                                                  )
                                      )
+    
+
 
     if ld_rev == -1:
         revision = 0
@@ -70,9 +102,13 @@ def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
         cover_sheet.cell(row=5, column=1).value = ld_information["ld_title"]
     else:
         revision = ld_rev + 1
-        ld_name = ld_name[:23] \
-            + '_R' \
-            + str(revision)
+        if len(ld_name) > 14 and ld_name[14] == '-':
+            num = 23
+        elif len(ld_name) > 16 and ld_name[16] == '-':
+            num = 24
+        else:
+            num = 23
+        ld_name = ld_name[:num] + '_R' + str(revision)
         last_grd = book['GRD-' + str(grd_number - 1).zfill(3)]
         project_title = last_grd.cell(row=1, column=6).value
     sheet.cell(row=1, column=6).value = project_title
@@ -102,9 +138,10 @@ def create_excel_grd(emited_path, ld_name, grd_number, grd_name,
     cover_sheet.cell(row=rev_row + 3,
                      column=rev_column).value = ld_information["acronym3"]
 
-    ld_final_path = os.path.join(emited_path,
-                                 '_LDs',
-                                 ld_name + '.xlsx')
+    ld_final_path = os.path.join(
+        ld_path,
+        ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx'
+    )
     book.save(filename=ld_final_path)
     book.close()
 

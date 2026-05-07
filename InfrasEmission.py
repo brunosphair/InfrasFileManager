@@ -14,8 +14,9 @@ from excel_functions import get_grd_number, create_excel_grd, \
 
 
 class Emission:
-    def __init__(self):
+    def __init__(self, folder_path=None):
         load_dotenv()
+        self.base_path = Path(folder_path).absolute() if folder_path else Path(os.getcwd()).absolute()
         self.doc_reg_expression, self.rev_reg_expression = \
                                                     self.get_reg_expressions()
         self.file_num_caract = self.get_file_num_caract()
@@ -39,7 +40,7 @@ class Emission:
         '''
         docs = []
         file_names = []
-        for path, subdir, files in os.walk('.'):
+        for path, subdir, files in os.walk(self.base_path):
             subdir[:] = [d for d in subdir if d != '00_LDs']
             # subdir.clear()
             for file in files:
@@ -57,7 +58,7 @@ class Emission:
                     dict_item['file_name'] = file
                     dict_item['rev'] = rev
                     dict_item['emit'] = True
-                    dict_item['subdir'] = os.path.relpath(path)
+                    dict_item['subdir'] = os.path.relpath(path, self.base_path)
                     docs.append(dict_item)
                 else:
                     msg = f"Há dois arquivos com o nome {file} dentro da emissão"
@@ -70,8 +71,8 @@ class Emission:
         '''
         Returns the path to the folder 3_Emitidos
         '''
-        path = Path(os.getcwd()).parent.absolute()
-        parent_path = path.parent.absolute()
+        path = self.base_path.parent
+        parent_path = path.parent
         issued_path = os.path.join(parent_path, '3_Emitidos')
         if not os.path.isdir(issued_path):
             raise FileNotFoundError("A pasta 3_Emitidos não foi encontrada")
@@ -83,7 +84,7 @@ class Emission:
         '''
         ld_path = os.path.join(self.emited_path, '_LDs')
         if not os.path.isdir(ld_path):
-            ld_path = os.path.join(os.getcwd(), "00_LDs")
+            ld_path = os.path.join(str(self.base_path), "00_LDs")
         if not os.path.isdir(ld_path):
             raise FileNotFoundError("A pasta de LDs não foi encontrada")
         return ld_path
@@ -127,7 +128,7 @@ class Emission:
 
         if doc_reg_expression is None:
             doc_reg_expression = \
-                    r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
+                    r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$'
         if rev_reg_expression is None:
             rev_reg_expression = r'(?i)_R\d+$'
 
@@ -146,8 +147,8 @@ class Emission:
         '''
         Retuns the number of the project.
         '''
-        path = Path(os.getcwd()).parent.absolute()
-        project_path = path.parent.absolute()
+        path = self.base_path.parent
+        project_path = path.parent
         dir_name = os.path.basename(project_path)
         project_number = dir_name[:4]
         if not project_number.isnumeric():
@@ -257,10 +258,13 @@ class Emission:
                         del dirs_to_create[folder_name]
 
     def create_zip(self):
-        zipObj = ZipFile(self.grd_name + '.zip', 'w')
+        zip_path = os.path.join(str(self.base_path), self.grd_name + '.zip')
+        zipObj = ZipFile(zip_path, 'w')
         for doc in self.docs:
             if doc['emit']:
-                zipObj.write(os.path.join(doc['subdir'], doc['file_name']))
+                file_path = os.path.join(str(self.base_path), doc['subdir'], doc['file_name'])
+                arcname = os.path.join(doc['subdir'], doc['file_name'])
+                zipObj.write(file_path, arcname)
         zipObj.close()
 
     def create_ld(self):
@@ -352,7 +356,7 @@ class Emission:
             try:
                 for doc in self.docs:
                     if doc['emit']:
-                        src = Path(os.path.join(doc['subdir'], doc['file_name']))
+                        src = Path(os.path.join(str(self.base_path), doc['subdir'], doc['file_name']))
                         os.replace(src, src)
                 file_open = False
             except OSError:
@@ -406,7 +410,7 @@ class Emission:
         for directory in self.directories.keys():
             for doc in self.docs:
                 if doc['emit'] and doc['file_name'].startswith(directory):
-                    src = Path(os.path.join(doc['subdir'], doc['file_name']))
+                    src = Path(os.path.join(str(self.base_path), doc['subdir'], doc['file_name']))
                     dest = Path(os.path.join(os.path.join(self.emited_path,
                                                           self.directories[directory],
                                                           directory),
@@ -447,7 +451,7 @@ class Emission:
 
     @staticmethod
     def verify_ld_pattern_no_rev(doc_name):
-        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}(_R\d+)?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$'
         if re.match(pattern, doc_name):
             return True
         else:
@@ -467,7 +471,7 @@ class Emission:
     @staticmethod
     def get_ld_revision(doc_name):
         doc_name_no_extension = os.path.splitext(doc_name)[0]
-        pattern = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$'
         if not re.match(pattern, doc_name_no_extension):
             return -1
         else:

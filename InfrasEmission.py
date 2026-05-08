@@ -128,7 +128,7 @@ class Emission:
 
         if doc_reg_expression is None:
             doc_reg_expression = \
-                    r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$'
+                    r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}[^_\s]*|\w-\w{2}-\d{5}[^_\s]*)(_R\d+)?$'
         if rev_reg_expression is None:
             rev_reg_expression = r'(?i)_R\d+$'
 
@@ -303,7 +303,7 @@ class Emission:
             probably_name = self.get_probably_name()
             d_text = "IFS-"\
                      + str(self.project_number)\
-                     + "-" + probably_name + "-GER-LD-00001"
+                     + "-" + probably_name + "-GER-LD-0001"
             defined_name = False
             while not defined_name:
                 ld_name = enterbox(text, title, d_text)
@@ -451,7 +451,7 @@ class Emission:
 
     @staticmethod
     def verify_ld_pattern_no_rev(doc_name):
-        pattern = r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$'
+        pattern = r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4,}|\w-\w{2}-\d{5,})(_R\d+)?$'
         if re.match(pattern, doc_name):
             return True
         else:

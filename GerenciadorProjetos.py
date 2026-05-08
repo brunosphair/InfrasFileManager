@@ -120,11 +120,23 @@ class GerenciadorProjeto():
         arquivos_ld = self._get_arquivos_ld(caminho_ld)
         self._mostrar_frame(self._build_ui_project_decision, nome, caminho, arquivos_ld)
 
+    @staticmethod
+    def extrair_revisao(nome_base):
+        nome_sem_ext = os.path.splitext(nome_base)[0]
+        match = re.search(r'_R(\d+)$', nome_sem_ext)
+        return int(match.group(1)) if match else -1
+
     def _build_ui_project_decision(self, frame, nome, caminho, arquivos_ld):
         '''
             Constrói a interface para exibir os arquivos ZIP encontrados
             e os botoes para a proxima decisao na pasta projeto
         '''
+        revisoes_ld = [self.extrair_revisao(planilha) for planilha in arquivos_ld if self.extrair_revisao(planilha) >=0]
+        if len(revisoes_ld) > 0:
+            maior_rev = max(revisoes_ld)
+        else:
+            maior_rev = -1
+
         tk.Label(frame, text=f"Projeto: {nome}", font=("Arial", 11, "bold")).pack(pady=(15, 5))
 
         tk.Label(frame, text="Emissões realizadas:", font=("Arial", 10)).pack(anchor="w", padx=30, pady=(0, 7))
@@ -139,8 +151,9 @@ class GerenciadorProjeto():
         listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        for arquivo in arquivos_ld:
-            listbox.insert(tk.END, arquivo)
+        for rev in range(maior_rev + 1):
+            rev = str(rev + 1)
+            listbox.insert(tk.END, rev.zfill(3))
 
         # Botao de emissao
         tk.Button(

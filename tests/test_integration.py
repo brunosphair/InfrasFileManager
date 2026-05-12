@@ -3,6 +3,7 @@ import sys
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 from zipfile import ZipFile
 
@@ -47,6 +48,7 @@ class TestMoveFiles(unittest.TestCase):
             os.chdir(tmp)
             try:
                 emis = make_emission(
+                    base_path=Path(tmp),
                     emited_path=os.path.join(tmp, '3_Emitidos'),
                     directories={'IFS-2227-001-A-AR-00001': '.'},
                     docs=[{
@@ -114,6 +116,7 @@ class TestCreateZip(unittest.TestCase):
             os.chdir(tmp)
             try:
                 emis = make_emission(
+                    base_path=Path(tmp),
                     grd_name='IFS-GRD-2227-001',
                     docs=[
                         {'file_name': file1, 'rev': 2, 'emit': True,  'subdir': '.'},
@@ -137,6 +140,7 @@ class TestCreateZip(unittest.TestCase):
             os.chdir(tmp)
             try:
                 emis = make_emission(
+                    base_path=Path(tmp),
                     grd_name='IFS-GRD-2227-002',
                     docs=[
                         {'file_name': 'doc.pdf', 'rev': 0, 'emit': False, 'subdir': '.'},

@@ -18,7 +18,7 @@ class GerenciadorProjeto():
             base_dir = os.path.dirname(sys.executable)
         else:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.pasta_pai = os.path.abspath(os.path.join(base_dir, ".."))
+        self.base_dir = os.path.abspath(os.path.join(base_dir))
         self.pastas = self._listar_pastas()
 
         self.frame_atual = None
@@ -44,8 +44,8 @@ class GerenciadorProjeto():
         padrao = re.compile(r'^\d{4}')
         try:
             return [
-                p for p in os.listdir(self.pasta_pai)
-                if os.path.isdir(os.path.join(self.pasta_pai, p)) and padrao.match(p)
+                p for p in os.listdir(self.base_dir)
+                if os.path.isdir(os.path.join(self.base_dir, p)) and padrao.match(p)
             ]
         except (PermissionError, FileNotFoundError):
             return []
@@ -92,11 +92,11 @@ class GerenciadorProjeto():
         ).pack(pady=15)
 
     def _get_caminhos(self, nome):
-        caminho = os.path.join(self.pasta_pai, nome, "2_Producao", "06_Para_Emissao")
+        caminho = os.path.join(self.base_dir, nome, "2_Producao", "06_Para_Emissao")
         caminho_ld = os.path.join(caminho, "00_LDs")
         if not os.path.isdir(caminho):
-            caminho = os.path.join(self.pasta_pai, nome, "5_Engenharia", "_PARA EMISSAO")
-            caminho_ld = os.path.join(self.pasta_pai, nome, "3_Emitidos", "_LDs")
+            caminho = os.path.join(self.base_dir, nome, "5_Engenharia", "_PARA EMISSAO")
+            caminho_ld = os.path.join(self.base_dir, nome, "3_Emitidos", "_LDs")
         if not os.path.isdir(caminho):
             raise FileNotFoundError(f"Pasta de emissão não encontrada para o projeto '{nome}'")
         if not os.path.isdir(caminho_ld):

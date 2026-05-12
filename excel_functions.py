@@ -1,9 +1,23 @@
 import openpyxl
 import os
+from copy import deepcopy
 
 from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.drawing.image import Image as XLImage
+
+_LOGO_WIDTH = 180
+_LOGO_HEIGHT = 50
+
+
+def _add_client_logo(sheet, img_path):
+    xl_img = XLImage(img_path)
+    xl_img.width = _LOGO_WIDTH
+    xl_img.height = _LOGO_HEIGHT
+    xl_img.anchor = 'A1'
+    sheet.add_image(xl_img)
+
 
 
 def get_grd_number(ld_path, ld_name):
@@ -14,12 +28,16 @@ def get_grd_number(ld_path, ld_name):
     book_path = os.path.join(ld_path, ld_name)
 
     wb = openpyxl.load_workbook(book_path, read_only=True)
-    grd_number = 1
-    sheet_name = 'GRD-' + str(grd_number).zfill(3)
-    while sheet_name in wb.sheetnames:
-        grd_number += 1
+    try:
+        grd_number = 1
         sheet_name = 'GRD-' + str(grd_number).zfill(3)
-    wb.close()
+        while sheet_name in wb.sheetnames:
+            grd_number += 1
+            sheet_name = 'GRD-' + str(grd_number).zfill(3)
+    finally:
+        wb.close()
+        if hasattr(wb, '_archive') and wb._archive.fp:
+            wb._archive.fp.close()
 
     return grd_number
 
@@ -55,95 +73,104 @@ def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
                      ld_information, ld_rev, grd_items):
     book_path = os.path.join(ld_path, ld_name)
     book = openpyxl.load_workbook(book_path)
-    template_sheet = book['GRD-XXX']
-    cover_sheet = book['Capa']
-    restore_gerador_validations(book)
-    sheet = book.copy_worksheet(template_sheet)
-    sheet.title = 'GRD-' + str(grd_number).zfill(3)
-    i = 1
-    for item in grd_items:
-        sheet.cell(row=25 + i, column=1).value = int(i)
-        sheet.cell(row=25 + i, column=2).value = item[0]
-        sheet.cell(row=25 + i, column=16).value = int(item[1])
-        i += 1
-    sheet.cell(row=10, column=12).value = grd_name
+    try:
+        template_sheet = book['GRD-XXX']
+        cover_sheet = book['Capa']
+        restore_gerador_validations(book)
+        sheet = book.copy_worksheet(template_sheet)
+        sheet.title = 'GRD-' + str(grd_number).zfill(3)
+        for image in template_sheet._images:
+            sheet.add_image(deepcopy(image))
+        i = 1
+        for item in grd_items:
+            sheet.cell(row=25 + i, column=1).value = int(i)
+            sheet.cell(row=25 + i, column=2).value = item[0]
+            sheet.cell(row=25 + i, column=16).value = int(item[1])
+            i += 1
+        sheet.cell(row=10, column=12).value = grd_name
 
-    sheet.cell(row=7,
-               column=12).value = ld_information["emission_date"]
+        sheet.cell(row=7,
+                   column=12).value = ld_information["emission_date"]
 
-    yellowFill = PatternFill(start_color='FFFF00',
-                             end_color='FFFF00',
-                             fill_type='solid')
-    sheet.conditional_formatting.add('$E$26:$O$192',
-                                     FormulaRule(formula=[
-                                                 'AND($B26<>"",E26="")'
-                                                 ],
-                                                 stopIfTrue=False,
-                                                 fill=yellowFill
-                                                 )
-                                     )
-    sheet.conditional_formatting.add('$Q$26:$R$192',
-                                     FormulaRule(formula=[
-                                                 'AND($B26<>"",Q26="")'
-                                                 ],
-                                                 stopIfTrue=False,
-                                                 fill=yellowFill
-                                                 )
-                                     )
-    
+        yellowFill = PatternFill(start_color='FFFF00',
+                                 end_color='FFFF00',
+                                 fill_type='solid')
+        sheet.conditional_formatting.add('$E$26:$O$192',
+                                         FormulaRule(formula=[
+                                                     'AND($B26<>"",E26="")'
+                                                     ],
+                                                     stopIfTrue=False,
+                                                     fill=yellowFill
+                                                     )
+                                         )
+        sheet.conditional_formatting.add('$Q$26:$R$192',
+                                         FormulaRule(formula=[
+                                                     'AND($B26<>"",Q26="")'
+                                                     ],
+                                                     stopIfTrue=False,
+                                                     fill=yellowFill
+                                                     )
+                                         )
 
-
-    if ld_rev == -1:
-        revision = 0
-        ld_name = ld_information["ld_name"]
-        cover_sheet.cell(row=2, column=4).value = ld_name
-        ld_name = ld_name + "_R0"
-        project_title = ld_information["project_title"]
-        cover_sheet.cell(row=5, column=1).value = ld_information["ld_title"]
-    else:
-        revision = ld_rev + 1
-        if len(ld_name) > 14 and ld_name[14] == '-':
-            num = 23
-        elif len(ld_name) > 16 and ld_name[16] == '-':
-            num = 24
+        if ld_rev == -1:
+            revision = 0
+            ld_name = ld_information["ld_name"]
+            cover_sheet.cell(row=2, column=4).value = ld_name
+            ld_name = ld_name + "_R0"
+            project_title = ld_information["project_title"]
+            cover_sheet.cell(row=5, column=1).value = ld_information["ld_title"]
         else:
-            num = 23
-        ld_name = ld_name[:num] + '_R' + str(revision)
-        last_grd = book['GRD-' + str(grd_number - 1).zfill(3)]
-        project_title = last_grd.cell(row=1, column=6).value
-    sheet.cell(row=1, column=6).value = project_title
-    cover_sheet.cell(row=6, column=12).value = revision
-    if revision > 13:
-        reorder_description_cells(cover_sheet)
-        input_row = 29
-    else:
-        input_row = 16 + revision
-    cover_sheet.cell(input_row, column=1).value = revision
-    cover_sheet.cell(input_row, column=2).value = "C"
-    cover_sheet.cell(input_row, column=3).value = grd_name
-    rev_cell = get_cover_cell(revision)
-    rev_row = rev_cell[0]
-    rev_column = rev_cell[1]
+            revision = ld_rev + 1
+            if len(ld_name) > 14 and ld_name[14] == '-':
+                num = 23
+            elif len(ld_name) > 16 and ld_name[16] == '-':
+                num = 24
+            else:
+                num = 23
+            ld_name = ld_name[:num] + '_R' + str(revision)
+            last_grd = book['GRD-' + str(grd_number - 1).zfill(3)]
+            project_title = last_grd.cell(row=1, column=6).value
+        sheet.cell(row=1, column=6).value = project_title
+        cover_sheet.cell(row=6, column=12).value = revision
+        if revision > 13:
+            reorder_description_cells(cover_sheet)
+            input_row = 29
+        else:
+            input_row = 16 + revision
+        cover_sheet.cell(input_row, column=1).value = revision
+        cover_sheet.cell(input_row, column=2).value = "C"
+        cover_sheet.cell(input_row, column=3).value = grd_name
+        rev_cell = get_cover_cell(revision)
+        rev_row = rev_cell[0]
+        rev_column = rev_cell[1]
 
-    if revision > 9:
-        reorder_rev_cells(cover_sheet, revision)
+        if revision > 9:
+            reorder_rev_cells(cover_sheet, revision)
 
-    cover_sheet.cell(row=rev_row,
-                     column=rev_column).value = ld_information[
-        "emission_date"]
-    cover_sheet.cell(row=rev_row + 1,
-                     column=rev_column).value = ld_information["acronym1"]
-    cover_sheet.cell(row=rev_row + 2,
-                     column=rev_column).value = ld_information["acronym2"]
-    cover_sheet.cell(row=rev_row + 3,
-                     column=rev_column).value = ld_information["acronym3"]
+        cover_sheet.cell(row=rev_row,
+                         column=rev_column).value = ld_information[
+            "emission_date"]
+        cover_sheet.cell(row=rev_row + 1,
+                         column=rev_column).value = ld_information["acronym1"]
+        cover_sheet.cell(row=rev_row + 2,
+                         column=rev_column).value = ld_information["acronym2"]
+        cover_sheet.cell(row=rev_row + 3,
+                         column=rev_column).value = ld_information["acronym3"]
 
-    ld_final_path = os.path.join(
-        ld_path,
-        ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx'
-    )
-    book.save(filename=ld_final_path)
-    book.close()
+        client_img = ld_information.get("client_img")
+        if client_img is not None:
+            _add_client_logo(cover_sheet, client_img)
+            _add_client_logo(sheet, client_img) 
+            _add_client_logo(book['LD'], client_img)
+            _add_client_logo(book['GRD-XXX'], client_img)
+
+        ld_final_path = os.path.join(
+            ld_path,
+            ld_name if ld_name.endswith('.xlsx') else ld_name + '.xlsx'
+        )
+        book.save(filename=ld_final_path)
+    finally:
+        book.close()
 
 
 def get_cover_cell(rev):
@@ -168,13 +195,18 @@ def get_cover_cell(rev):
 
 def get_acronym_default_list(book_path, previous_cover_cell):
     wb = openpyxl.load_workbook(book_path, read_only=True)
-    cover_sheet = wb['Capa']
-    d1 = cover_sheet.cell(row=previous_cover_cell[0] + 1,
-                          column=previous_cover_cell[1]).value
-    d2 = cover_sheet.cell(row=previous_cover_cell[0] + 2,
-                          column=previous_cover_cell[1]).value
-    d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3,
-                          column=previous_cover_cell[1]).value
+    try:
+        cover_sheet = wb['Capa']
+        d1 = cover_sheet.cell(row=previous_cover_cell[0] + 1,
+                              column=previous_cover_cell[1]).value
+        d2 = cover_sheet.cell(row=previous_cover_cell[0] + 2,
+                              column=previous_cover_cell[1]).value
+        d3 = cover_sheet.cell(row=previous_cover_cell[0] + 3,
+                              column=previous_cover_cell[1]).value
+    finally:
+        wb.close()
+        if hasattr(wb, '_archive') and wb._archive.fp:
+            wb._archive.fp.close()
     return [d1, d2, d3]
 
 

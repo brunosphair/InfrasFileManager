@@ -1,5 +1,6 @@
 import os
 import re
+import gc
 import tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
@@ -14,7 +15,7 @@ class DesfazerEmissao:
         self.ld_path = self._get_ld_path()
         self.last_zip = self._find_last_zip()
 
-        self.padrao_re = re.compile(r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$')
+        self.padrao_re = re.compile(r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}[^_\s]*|\w-\w{2}-\d{5}[^_\s]*)(_R\d+)?$')
 
 
     def _get_ld_path(self) -> Path:
@@ -50,13 +51,14 @@ class DesfazerEmissao:
         planilha_maior_rev = [nome for nome, r in candidatos if r == maior_rev][0]
 
         wb = openpyxl.load_workbook(os.path.join(self.ld_path, planilha_maior_rev), read_only=True)
-
-        num_ultima_grd = wb.sheetnames[-1].split("-")[1]
-        num_ultimo_zip = os.path.splitext(str(self.last_zip).split("/")[-1])[0].split("-")[-1]
-        wb.close()
-        if num_ultima_grd == num_ultimo_zip:
-            return True
-        return False
+        try:
+            num_ultima_grd = wb.sheetnames[-1].split("-")[1]
+            num_ultimo_zip = os.path.splitext(str(self.last_zip).split("/")[-1])[0].split("-")[-1]
+        finally:
+            wb.close()
+            if hasattr(wb, '_archive') and wb._archive.fp:
+                wb._archive.fp.close()
+        return num_ultima_grd == num_ultimo_zip
 
     def _find_last_zip(self):
         pattern = re.compile(r'IFS-GRD-\d{4}-(\d{3})\.zip$', re.IGNORECASE)
@@ -202,6 +204,7 @@ class DesfazerEmissao:
         if not ld_files:
             return
         ld_files.sort(key=lambda x: x[0])
+        gc.collect()
         try:
             os.remove(str(ld_files[-1][1]))
         except Exception as e:

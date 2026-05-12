@@ -5,6 +5,8 @@ import stat
 from pathlib import Path
 from easygui import buttonbox, ccbox, multchoicebox, enterbox, msgbox, \
                     multenterbox
+import tkinter as tk
+from tkinter import filedialog
 from zipfile import ZipFile
 import datetime
 from dotenv import load_dotenv
@@ -279,6 +281,54 @@ class Emission:
                          self.grd_name, self.ld_information, self.ld_rev,
                          grd_items)
 
+    def get_client_img(self):
+        result = [None]
+
+        existing_root = tk._default_root
+        if existing_root is not None:
+            win = tk.Toplevel(existing_root)
+            win.grab_set()
+        else:
+            win = tk.Tk()
+
+        win.title("Logotipo do cliente")
+        win.resizable(False, False)
+
+        tk.Label(win, text="Logotipo do cliente (opcional)",
+                 font=("Arial", 11, "bold")).pack(padx=30, pady=(20, 5))
+
+        status_label = tk.Label(win, text="Nenhuma imagem selecionada",
+                                font=("Arial", 10), fg="gray")
+        status_label.pack(padx=30, pady=(0, 15))
+
+        def importar():
+            path = filedialog.askopenfilename(
+                parent=win,
+                title="Selecione o logotipo do cliente",
+                filetypes=[("Imagens", "*.png *.jpg *.jpeg *.bmp"),
+                           ("Todos os arquivos", "*.*")]
+            )
+            if path:
+                result[0] = path
+                status_label.config(text=os.path.basename(path), fg="black")
+
+        def continuar():
+            win.destroy()
+
+        btn_frame = tk.Frame(win)
+        btn_frame.pack(padx=30, pady=(0, 20))
+        tk.Button(btn_frame, text="Importar imagem", font=("Arial", 10),
+                  width=15, command=importar).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Continuar", font=("Arial", 10),
+                  width=15, command=continuar).pack(side=tk.LEFT, padx=5)
+
+        if existing_root is not None:
+            existing_root.wait_window(win)
+        else:
+            win.mainloop()
+
+        return result[0]
+
     def get_ld_information(self):
         date_defined = False
         while not date_defined:
@@ -344,6 +394,10 @@ class Emission:
         ld_information["acronym1"] = output[0]
         ld_information["acronym2"] = output[1]
         ld_information["acronym3"] = output[2]
+        if self.ld_rev == -1:
+            ld_information["client_img"] = self.get_client_img()
+        else:
+            ld_information["client_img"] = None
 
         return ld_information
 

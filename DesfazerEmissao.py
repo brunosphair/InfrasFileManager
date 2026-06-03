@@ -51,13 +51,12 @@ class DesfazerEmissao:
         planilha_maior_rev = [nome for nome, r in candidatos if r == maior_rev][0]
 
         wb = openpyxl.load_workbook(os.path.join(self.ld_path, planilha_maior_rev), read_only=True)
-        try:
-            num_ultima_grd = wb.sheetnames[-1].split("-")[1]
-            num_ultimo_zip = os.path.splitext(str(self.last_zip).split("/")[-1])[0].split("-")[-1]
-        finally:
-            wb.close()
-            if hasattr(wb, '_archive') and wb._archive.fp:
-                wb._archive.fp.close()
+    
+        num_ultima_grd = wb.sheetnames[-1].split("-")[1]
+        num_ultimo_zip = os.path.splitext(str(self.last_zip).split("/")[-1])[0].split("-")[-1]
+        wb.close()
+        if hasattr(wb, '_archive') and wb._archive.fp:
+            wb._archive.fp.close()
         return num_ultima_grd == num_ultimo_zip
 
     def _find_last_zip(self):

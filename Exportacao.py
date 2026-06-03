@@ -10,8 +10,10 @@ FONTE = ("Arial", 10)
 
 class Exportar():
 
-    def __init__(self, base_path):
+    def __init__(self, base_path, emissao):
         self.base_path = Path(base_path)
+        self.emissao = emissao
+        self.revision = int(emissao) - 1
         self.padrao_re = re.compile(r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}|\w-\w{2}-\d{5})(_R\d+)?$')
 
         self.planilha = self.encontrar_planilha()
@@ -61,19 +63,13 @@ class Exportar():
         return int(match.group(1)) if match else 0
     
     def encontrar_planilha(self):
-        candidatos = []
-
+        target = f'_R{self.revision}'
         for nome in os.listdir(self.base_path):
             raiz, ext = os.path.splitext(nome)
-            if ext.lower() == ".xlsx" and self.padrao_re.match(raiz):
-                candidatos.append((nome, self.extrair_revisao(raiz)))
-        if not candidatos:
-            messagebox.showwarning('Resultado', 'Nenhuma planilha encontrada com o padrão IFS.')
-            return
-        maior_rev = max(r for _, r in candidatos)
-        planilha_maior_rev = [nome for nome, r in candidatos if r == maior_rev][0]
-
-        return planilha_maior_rev
+            if ext.lower() == '.xlsx' and self.padrao_re.match(raiz) and raiz.endswith(target):
+                return nome
+        messagebox.showwarning('Resultado', f'Planilha para emissão {self.emissao} não encontrada.')
+        return None
     
     def gerar_nomenclatura_grd(self, nmr_grd):
         if self.planilha[14] == "-": 
@@ -99,7 +95,7 @@ class Exportar():
         botao_exportar_ld = tk.Button(frame, text="Exportar LD",font=FONTE, command=self.exportar_ld)
         botao_exportar_ld.grid(column=1,row=2)
 
-        botao_exportar_grd = tk.Button(frame, text="Exportar GRD",font=FONTE, command=lambda: self._mostrar_frame(self.interface_export_grd))
+        botao_exportar_grd = tk.Button(frame, text="Exportar GRD",font=FONTE, command=self.exportar_grd)
         botao_exportar_grd.grid(column=2, row=2)
 
         
@@ -131,27 +127,6 @@ class Exportar():
 
         messagebox.showinfo("Resultado", "Planilha exportada com sucesso!")
         self.janela.destroy()
-
-    def interface_export_grd(self, frame):
-
-        mensagem = tk.Label(frame, text="Insira o numero da GRD que\nvoce gostaria de exportar", font=FONTE)
-        mensagem.grid(column=0,row=0,columnspan=2)
-
-        self.entrada_grd = tk.Entry(frame, font=FONTE)
-        self.entrada_grd.grid(column=0,row=1, columnspan=2, pady=(10,0))
-
-        botao_enviar = tk.Button(frame,
-            text="Exportar",
-            font=FONTE,
-            command= self.exportar_grd
-        ).grid(column=0,row=2, pady=(10,0))
-
-        botao_voltar = tk.Button(
-            frame,
-            text="Voltar",
-            font=FONTE,
-            command=lambda: self._mostrar_frame(self.interface)
-        ).grid(column=1,row=2, pady=(10,0))
     
 
     def validar_titulo_vazio(self, ws):
@@ -168,7 +143,7 @@ class Exportar():
 
     def exportar_grd(self):
 
-        nmr_grd = self.entrada_grd.get().zfill(3)
+        nmr_grd = self.emissao
         planilha = openpyxl.load_workbook(str(self.base_path / self.planilha), data_only=True)
 
         try: 

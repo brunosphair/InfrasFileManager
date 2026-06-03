@@ -23,7 +23,7 @@ class GerenciadorProjeto():
 
         self.frame_atual = None
 
-        self._mostrar_frame(self._build_ui_find_project)
+        self._mostrar_frame(self.fazer_login)
         self.root.mainloop()
 
     def _mostrar_frame(self, builder, *args):
@@ -36,6 +36,31 @@ class GerenciadorProjeto():
         self.frame_atual.pack(fill=tk.BOTH, expand=True, padx=15)
         # Chama a classe enviada como parametro no _mostrar_frame
         builder(self.frame_atual, *args)
+
+    def fazer_login(self, frame):
+
+        tk.Label(frame, text="Insira a senha:", font=("Arial", 10)).pack(pady=(80, 5))
+        senha_entry = tk.Entry(frame, font=("Arial", 10), show="*")
+        senha_entry.pack(pady=(0, 10))
+        senha_entry.focus()
+
+        def validar_senha():
+            senha = senha_entry.get()
+            if senha == "IFS":
+                self._mostrar_frame(self._build_ui_find_project)
+            else:
+                messagebox.showerror("Erro", "Senha inválida")
+                senha_entry.delete(0, tk.END)
+
+        senha_entry.bind("<Return>", lambda _: validar_senha())
+        tk.Button(frame, text="Entrar", font=("Arial", 10), width=15, command=validar_senha).pack()
+        assets_dir = getattr(sys, '_MEIPASS', self.base_dir)
+        img_path = os.path.join(assets_dir, "assets", "Logo_infras.png")
+        if os.path.exists(img_path):
+            photo = tk.PhotoImage(file=img_path.replace("\\", "/")).subsample(12, 12)
+            label_img = tk.Label(frame, image=photo, bg="white")
+            label_img.image = photo
+            label_img.pack(pady=(20, 5))
 
     def _listar_pastas(self):
         '''
@@ -181,7 +206,7 @@ class GerenciadorProjeto():
             text="Exportar LD/GRD",
             font=("Arial", 10),
             width=20,
-            command=lambda: self._on_exportacao(caminho, nome)
+            command=lambda: self._on_exportacao(caminho, nome, listbox)
         ).pack(pady=(15,0))
         
         # Botao de voltar
@@ -241,9 +266,14 @@ class GerenciadorProjeto():
         arquivos_ld = self._get_arquivos_ld(caminho_ld)
         self._mostrar_frame(self._build_ui_project_decision, nome, caminho, arquivos_ld)
 
-    def _on_exportacao(self, _, nome):
+    def _on_exportacao(self, _, nome, listbox):
+        sel = listbox.curselection()
+        if not sel:
+            messagebox.showwarning("Aviso", "Selecione uma emissão primeiro.")
+            return
+        emissao = listbox.get(sel[0])
         _, caminho_ld = self._get_caminhos(nome)
-        export = Exportar(caminho_ld)
+        Exportar(caminho_ld, emissao)
 
 
 if __name__ == "__main__":

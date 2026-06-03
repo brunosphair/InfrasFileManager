@@ -1,21 +1,37 @@
 import openpyxl
 import os
+import struct
 from copy import deepcopy
 
 from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import FormulaRule
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.drawing.image import Image as XLImage
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+from openpyxl.drawing.xdr import XDRPositiveSize2D
 
 _LOGO_WIDTH = 180
-_LOGO_HEIGHT = 50
+_LOGO_HEIGHT = 60
+_LOGO_PADDING_PX = 10
+_PX_TO_EMU = 9525
 
 
-def _add_client_logo(sheet, img_path):
+def _add_client_logo(sheet, img_path, cell='A1', padding = _LOGO_PADDING_PX):
+    with open(img_path, 'rb') as f:
+        f.read(16)
+        orig_w = struct.unpack('>I', f.read(4))[0]
+        orig_h = struct.unpack('>I', f.read(4))[0]
+    scale = min(_LOGO_WIDTH / orig_w, _LOGO_HEIGHT / orig_h, 1.0)
+    final_w = int(orig_w * scale)
+    final_h = int(orig_h * scale)
+    col_idx = openpyxl.utils.column_index_from_string(cell[0]) - 1
+    row_idx = int(cell[1:]) - 1
     xl_img = XLImage(img_path)
-    xl_img.width = _LOGO_WIDTH
-    xl_img.height = _LOGO_HEIGHT
-    xl_img.anchor = 'A1'
+    xl_img.width = final_w
+    xl_img.height = final_h
+    padding = padding * _PX_TO_EMU
+    marker = AnchorMarker(col=col_idx, colOff=padding, row=row_idx, rowOff=padding)
+    xl_img.anchor = OneCellAnchor(_from=marker, ext=XDRPositiveSize2D(final_w * _PX_TO_EMU, final_h * _PX_TO_EMU))
     sheet.add_image(xl_img)
 
 
@@ -161,7 +177,7 @@ def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
         if client_img is not None:
             _add_client_logo(cover_sheet, client_img)
             _add_client_logo(sheet, client_img) 
-            _add_client_logo(book['LD'], client_img)
+            _add_client_logo(book['LD'], client_img, cell='B1', padding=20)
             _add_client_logo(book['GRD-XXX'], client_img)
 
         ld_final_path = os.path.join(

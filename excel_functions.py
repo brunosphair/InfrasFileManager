@@ -86,7 +86,7 @@ def restore_gerador_validations(book):
 
 
 def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
-                     ld_information, ld_rev, grd_items):
+                     ld_information, ld_rev, grd_items, doc_items=None):
     book_path = os.path.join(ld_path, ld_name)
     book = openpyxl.load_workbook(book_path)
     try:
@@ -176,9 +176,20 @@ def create_excel_grd(ld_path, ld_name, grd_number, grd_name,
         client_img = ld_information.get("client_img")
         if client_img is not None:
             _add_client_logo(cover_sheet, client_img)
-            _add_client_logo(sheet, client_img) 
+            _add_client_logo(sheet, client_img)
             _add_client_logo(book['LD'], client_img, cell='B1', padding=20)
             _add_client_logo(book['GRD-XXX'], client_img)
+
+        if doc_items and 'LD' in book.sheetnames:
+            ld_sheet = book['LD']
+            row = 15
+            while ld_sheet.cell(row=row, column=2).value is not None:
+                row += 1
+            for code, title in doc_items:
+                ld_sheet.cell(row=row, column=2).value = code
+                if title:
+                    ld_sheet.cell(row=row, column=3).value = title
+                row += 1
 
         ld_final_path = os.path.join(
             ld_path,

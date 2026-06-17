@@ -10,9 +10,11 @@ from tkinter import filedialog
 from zipfile import ZipFile
 import datetime
 from dotenv import load_dotenv
+import fitz
 
 from excel_functions import get_grd_number, create_excel_grd, \
                             get_acronym_default_list, get_cover_cell
+
 
 
 class Emission:
@@ -277,9 +279,154 @@ class Emission:
             if doc['emit'] and doc_name not in no_docs:
                 no_docs.append(doc_name)
                 grd_items.append([doc_name, doc['rev']])
+
+        doc_items = self.get_docx_items()
+
         create_excel_grd(self.ld_path, self.ld_name, self.grd_number,
                          self.grd_name, self.ld_information, self.ld_rev,
-                         grd_items)
+                         grd_items, doc_items)
+
+    # Linha de escala do carimbo (ex.: "1:2000", "1:40.000").
+    _ESCALA = re.compile(r'^\d{1,4}:\d[\d.,]*')
+
+    # Palavras que NÃO são título: empreendimento, obra, assinaturas, rótulos.
+    _TITULO_RUIDO = ["PONTE", "BRIDGE", "EMPREEND", "GOVERNO", "CONCESS",
+                     "ESTUDO DE VIABILIDADE", "EVTEA", "SALVADOR", "ITAPARICA",
+                     "ASSINATURA", "ELABORAD", "VERIFIC", "APROVA",
+                     "DESCRI", "CLIENTE", "PLANTA-CHAVE", "NOTAS", "LEGENDA"]
+
+    @staticmethod
+    def _tenta_layout_A(txt):
+        """Layout A = folha A4 (relatório): título na capa ou no carimbo."""
+        return Emission._relatorio_por_empreendimento(txt) \
+            or Emission._relatorio_por_rev(txt)
+
+    @staticmethod
+    def _relatorio_por_empreendimento(txt):
+        """Capa bilíngue: a obra aparece 2x; o título vem após o 2º bloco dela."""
+        m = re.search(r'EMPREENDIMENTO\b', txt, re.I)
+        if not m:
+            return None
+        lines = [l.strip() for l in txt[m.end():].splitlines()]
+
+        def norm(s):
+            return re.sub(r'\s+', ' ',
+                          s.replace('–', '-').replace('—', '-')).upper().strip()
+
+        obra_idx = next((i for i, l in enumerate(lines) if len(l) >= 10), None)
+        if obra_idx is None:
+            return None
+        obra = norm(lines[obra_idx])
+        second = next((i for i in range(obra_idx + 1, len(lines))
+                       if norm(lines[i]) == obra), None)
+        if second is None:
+            return None
+        for l in lines[second + 1:]:
+            if not l:
+                continue
+            if any(x in l.upper() for x in Emission._TITULO_RUIDO):
+                continue
+            return l
+        return None
+
+    @staticmethod
+    def _relatorio_por_rev(txt):
+        """Carimbo sem EMPREENDIMENTO: título é a linha logo acima de 'REV:'."""
+        lines = [l.strip() for l in txt.splitlines()]
+        for i, l in enumerate(lines):
+            if re.match(r'^REV\.?:?$', l, re.I):
+                for j in range(i - 1, -1, -1):
+                    if not lines[j]:
+                        continue
+                    if any(x in lines[j].upper() for x in Emission._TITULO_RUIDO):
+                        return None
+                    return lines[j]
+                return None
+        return None
+
+    @staticmethod
+    def _tenta_layout_B(txt):
+        """Layout B = folha A0/A1 (desenho): título no carimbo."""
+        return Emission._desenho_projeto_executivo(txt) \
+            or Emission._desenho_por_escala(txt)
+
+    @staticmethod
+    def _desenho_projeto_executivo(txt):
+        """Carimbo com fase 'PROJETO EXECUTIVO': título nas linhas acima dela."""
+        lines = [l.strip() for l in txt.splitlines()]
+        pe_indices = [i for i, l in enumerate(lines)
+                      if re.match(r'^PROJETO EXECUTIVO$', l, re.I)]
+        if not pe_indices:
+            return None
+        segment = []
+        for i in range(pe_indices[-1] - 1, -1, -1):
+            line = lines[i]
+            if not line:
+                continue
+            if line == '-':
+                break
+            segment.insert(0, line)
+        if not segment:
+            return None
+        title_parts = segment[:-1] if len(segment) > 1 else segment
+        return ' '.join(title_parts) or None
+
+    @staticmethod
+    def _desenho_por_escala(txt):
+        """Carimbo sem rótulo de título: título nas linhas acima da escala."""
+        lines = [l.strip() for l in txt.splitlines()]
+        escala_idx = None
+        for i, l in enumerate(lines):
+            if Emission._ESCALA.match(l):
+                escala_idx = i
+        if escala_idx is None:
+            return None
+        titulo = []
+        for i in range(escala_idx - 1, -1, -1):
+            l = lines[i]
+            if not l:
+                continue
+            up = l.upper()
+            if any(x in up for x in Emission._TITULO_RUIDO):
+                break
+            if l == '-' or re.fullmatch(r'[\d.,\s/]+', l):
+                break
+            titulo.insert(0, l)
+            if len(titulo) >= 3:
+                break
+        if not titulo:
+            return None
+        return ' '.join(titulo).strip(' -\t') or None
+
+    @staticmethod
+    def _extract_doc_info(pdf_path):
+        doc = fitz.open(pdf_path)
+        page = doc[0]
+        txt = page.get_text()
+        long_edge = max(page.rect.width, page.rect.height)
+        doc.close()
+        # Roteia pelo tamanho da folha (a nomenclatura do arquivo não importa):
+        # A4 (lado maior <= 1000 pt) = relatório; maior que isso = desenho A0/A1.
+        if long_edge <= 1000:
+            return Emission._tenta_layout_A(txt)
+        return Emission._tenta_layout_B(txt)
+    
+    def get_docx_items(self):
+        items = []
+        for doc in self.docs:
+            if not doc['emit'] or doc['rev'] != 0:
+                continue
+            name = doc['file_name']
+            if not name.lower().endswith('.pdf'):
+                continue
+            path = os.path.join(str(self.base_path), doc['subdir'], name)
+            code = self.get_file_name(name)
+            try:
+                title = self._extract_doc_info(path)
+            except Exception:
+                title = None
+            items.append((code, title))
+        return items
 
     def get_client_img(self):
         result = [None]

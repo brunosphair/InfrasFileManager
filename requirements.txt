@@ -4,3 +4,4 @@ Pillow>=9.0.0
 pyperclip==1.8.2
 python-dotenv==1.0.0
 xlwings>=0.30.0
+pymupdf>=1.23.0

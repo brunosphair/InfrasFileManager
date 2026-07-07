@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -13,9 +14,10 @@ def make_emission(**kwargs):
     """Cria uma instância de Emission sem chamar __init__, evitando efeitos colaterais
     de filesystem, GUI e Excel."""
     obj = object.__new__(Emission)
-    obj.doc_reg_expression = r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$'
+    obj.doc_reg_expression = r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}[^_\s]*|\w-\w{2}-\d{5}[^_\s]*)(_R\d+)?$'
     obj.rev_reg_expression = r'(?i)_R\d+$'
     obj.file_num_caract = 23
+    obj.base_path = Path('.').absolute()
     for k, v in kwargs.items():
         setattr(obj, k, v)
     return obj
@@ -206,7 +208,7 @@ class TestGetRegExpressions(unittest.TestCase):
     @patch('InfrasEmission.os.getenv', return_value=None)
     def test_retorna_defaults_sem_env(self, mock_getenv, mock_load_dotenv):
         doc_re, rev_re = self.emis.get_reg_expressions()
-        self.assertEqual(doc_re, r'^IFS-\d{4}-\d{3}-(?:\w{3}|\w)-\w{2}-\d{4,5}.*(_R\d{1,2})?$')
+        self.assertEqual(doc_re, r'^IFS-\d{4}-\d{3}-(\w{3}-\w{2}-\d{4}[^_\s]*|\w-\w{2}-\d{5}[^_\s]*)(_R\d+)?$')
         self.assertEqual(rev_re, r'(?i)_R\d+$')
 
 
@@ -251,6 +253,7 @@ class TestGetEmitedPath(unittest.TestCase):
             os.makedirs(cwd_path)
             os.makedirs(emited)
             os.chdir(cwd_path)
+            self.emis.base_path = Path(cwd_path)
             try:
                 result = self.emis.get_emited_path()
             finally:
@@ -264,6 +267,7 @@ class TestGetEmitedPath(unittest.TestCase):
             cwd_path = os.path.join(tmp, 'projeto', 'engenharia', 'emissao')
             os.makedirs(cwd_path)
             os.chdir(cwd_path)
+            self.emis.base_path = Path(cwd_path)
             try:
                 with self.assertRaises(FileNotFoundError):
                     self.emis.get_emited_path()
@@ -300,6 +304,7 @@ class TestGetLdPath(unittest.TestCase):
             os.makedirs(cwd_ld)
             os.chdir(tmp)
             self.emis.emited_path = emited_path
+            self.emis.base_path = Path(tmp)
             try:
                 result = self.emis.get_ld_path()
             finally:
@@ -312,6 +317,7 @@ class TestGetLdPath(unittest.TestCase):
             os.makedirs(emited_path)
             os.chdir(tmp)
             self.emis.emited_path = emited_path
+            self.emis.base_path = Path(tmp)
             try:
                 with self.assertRaises(FileNotFoundError):
                     self.emis.get_ld_path()

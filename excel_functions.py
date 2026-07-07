@@ -1,7 +1,7 @@
 import openpyxl
 import os
-import struct
 from copy import deepcopy
+from PIL import Image as PILImage
 
 from openpyxl.styles import PatternFill
 from openpyxl.formatting.rule import FormulaRule
@@ -17,10 +17,8 @@ _PX_TO_EMU = 9525
 
 
 def _add_client_logo(sheet, img_path, cell='A1', padding = _LOGO_PADDING_PX):
-    with open(img_path, 'rb') as f:
-        f.read(16)
-        orig_w = struct.unpack('>I', f.read(4))[0]
-        orig_h = struct.unpack('>I', f.read(4))[0]
+    with PILImage.open(img_path) as im:
+        orig_w, orig_h = im.size
     scale = min(_LOGO_WIDTH / orig_w, _LOGO_HEIGHT / orig_h, 1.0)
     final_w = int(orig_w * scale)
     final_h = int(orig_h * scale)
